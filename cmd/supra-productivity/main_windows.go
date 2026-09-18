@@ -1020,3 +1020,144 @@ func loadCredentials() {
 		return
 	}
 	
+
+func sanitizeValue(k, v string) string {
+	if isSensitiveHeader(k) {
+		return "[REDACTED]"
+	}
+	lv := strings.ToLower(v)
+	if strings.Contains(lv, "authorization:") || strings.Contains(lv, "cookie:") || strings.Contains(lv, "x-signature:") {
+		return "[REDACTED]"
+	}
+	v = strings.ReplaceAll(strings.ReplaceAll(v, "\r", " "), "\n", " ")
+	if len(v) > 800 {
+		v = v[:800] + "…"
+	}
+	return v
+}
+func logEvent(level, event string, kv ...string) {
+	ensureDirs()
+	f, e := os.OpenFile(filepath.Join(logDir(), "supra_"+time.Now().Format("20060102")+".log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if e != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s %s %s", time.Now().Format(time.RFC3339), level, event)
+	for i := 0; i+1 < len(kv); i += 2 {
+		fmt.Fprintf(f, " %s=%q", kv[i], sanitizeValue(kv[i], kv[i+1]))
+	}
+	fmt.Fprintln(f)
+}
+func readLogTail(max int) string {
+	b, e := os.ReadFile(filepath.Join(logDir(), "supra_"+time.Now().Format("20060102")+".log"))
+	if e != nil {
+		return "Chưa có log."
+	}
+	lines := strings.Split(string(b), "\n")
+	if len(lines) > max {
+		lines = lines[len(lines)-max:]
+	}
+	return strings.Join(lines, "\r\n")
+}
+func shortHash(s string) string { h := sha256.Sum256([]byte(s)); return fmt.Sprintf("%x", h[:4]) }
+func exportDiagnostic() {
+	ensureDirs()
+	name := filepath.Join(settings.DataFolder, "Diagnostics", "SUPRA_DIAGNOSTIC_"+time.Now().Format("20060102_150405")+".txt")
+	os.MkdirAll(filepath.Dir(name), 0700)
+	var rm runtime.MemStats
+	runtime.ReadMemStats(&rm)
+	content := fmt.Sprintf("version=%s\ntime=%s\napp_heap_mb=%.1f\ngoroutines=%d\ncredential_present=%t\n\n%s", appVersion, time.Now().Format(time.RFC3339), float64(rm.Alloc)/1024/1024, runtime.NumGoroutine(), creds.URL != "", readLogTail(1000))
+	if e := os.WriteFile(name, []byte(content), 0600); e != nil {
+		setStatus("Xuất chẩn đoán lỗi: " + e.Error())
+		return
+	}
+	setStatus("Đã tạo chẩn đoán: " + name)
+	logEvent("INFO", "DIAGNOSTIC_EXPORT", "file", filepath.Base(name))
+}
+func openFolder(path string) { os.MkdirAll(path, 0700); _ = exec.Command("explorer.exe", path).Start() }
+func setStatus(s string) {
+	statusMu.Lock()
+	pendingStatus = s
+	statusMu.Unlock()
+	if mainWnd != 0 {
+		pPostMessage.Call(mainWnd, WM_APP_STATUS, 0, 0)
+	}
+}
+
+// GitHub update check is non-fatal. It never blocks app startup or internal operations.
+type releaseInfo struct {
+	TagName    string `json:"tag_name"`
+	HTMLURL    string `json:"html_url"`
+	Draft      bool   `json:"draft"`
+	Prerelease bool   `json:"prerelease"`
+}
+
+func latestRelease() (releaseInfo, error) {
+	var out releaseInfo
+	req, _ := http.NewRequest("GET", "https://api.github.com/repos/"+updateRepo+k"/releases/latest", nil)
+	req.Header.Set("User-Agent", "SupraProductivity/"+appVersion)
+	c := http.Client{Timeout: 8 * time.Second}
+	resp, e := c.Do(req)
+	if e != nil {
+		return out, e
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return out, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	e = json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out)
+	return out, e
+}
+func normalizeVersion(v string) string { return strings.TrimPrefix(strings.TrimSpace(v), "v") }
+func checkUpdateQuiet() {
+	r, e := latestRelease()
+	if e != nil {
+		logEvent("INFO", "UPDATE_CHECK_UNAVAILABLE", "error", e.Error())
+		return
+	}
+	logEvent("INFO", "UPDATE_CHECK_OK", "latest", r.TagName)
+	if normalizeVersion(r.TagName) != normalizeVersion(appVersion) && appVersion != "dev" {
+		setStatus("Có bản cập nhật " + r.TagName + ". Bấm CẬP NHẬT để mở Release.")
+	}
+}
+func checkUpdateInteractive() {
+	setStatus("Đang kiểm tra cập nhật…")
+	r, e := latestRelease()
+	if e != nil {
+		setStatus("Không thể kiểm tra cập nhật trên mạng hiện tại. Ứng dụng vẫn hoạt động bình thường.")
+		logEvent("INFO", "UPDATE_CHECK_UNAVAILABLE", "error", e.Error())
+		return
+	}
+	if normalizeVersion(r.TagName) == normalizeVersion(appVersion) {
+		setStatus("Đang dùng bản mới nhất: " + r.TagName)
+		return
+	}
+	setStatus("Có bản " + r.TagName + "; đang mở GitHub Release.")
+	pShellExecute.Call(0, uintptr(unsafe.Pointer(ptr("open"))), uintptr(unsafe.Pointer(ptr(r.HTMLURL))), 0, 0, SW_SHOW)
+}
+
+func main() {
+	pInitCommon.Call()
+	hInst, _, _ := kernel32.NewProc("GetModuleHandleW").Call(0)
+	cls := ptr("SupraProductivityWindow")
+	wc := WNDCLASSEX{CbSize: uint32(unsafe.Sizeof(WNDCLASSEX{})), LpfnWndProc: syscall.NewCallback(wndProc), HInstance: hInst, HCursor: func() uintptr { r, _, _ := pLoadCursor.Call(0, 32512); return r }(), LpszClassName: cls}
+	if r, _, _ := pRegisterClass.Call(uintptr(unsafe.Pointer(&wc))); r == 0 {
+		panic("RegisterClassExW failed")
+	}
+	title := appName + " · " + appVersion
+	hwnd, _, _ := pCreateWindow.Call(0, uintptr(unsafe.Pointer(cls)), uintptr(unsafe.Pointer(ptr(title))), WS_OVERLAPPEDWINDOW|WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 1500, 880, 0, 0, hInst, 0)
+	if hwnd == 0 {
+		panic("CreateWindowExW failed")
+	}
+	pShowWindow.Call(hwnd, SW_SHOW)
+	pUpdateWindow.Call(hwnd)
+	var msg MSG
+	for {
+		r, _, _ := pGetMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
+		if int32(r) <= 0 {
+			break
+		}
+		pTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
+		pDispatchMessage.Call(uintptr(unsafe.Pointer(&msg)))
+	}
+}
