@@ -5,9 +5,9 @@
   "repository": "tamnv2/supra-productivity-desktop",
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
-  "current_version": "v1.3-test",
-  "current_phase": "functional-parity-and-stabilization",
-  "current_status": "active_test",
+  "current_version": "v1.3.1-public-source-test",
+  "current_phase": "public-build-pipeline-and-live-profile-provisioning",
+  "current_status": "source_imported_ci_configured",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -39,33 +39,36 @@
     ]
   },
   "last_completed": [
-    "Built v1.3 test executable",
-    "Moved expensive network work away from the UI thread",
-    "Added cURL bash credential parsing with sensitive-value masking",
-    "Added Office/PDA adaptive network strategy",
-    "Added business controls to their operational screens instead of Settings",
-    "Added manual shift selection",
-    "Added expanded diagnostics and performance logging",
-    "Changed PICK skip-20-minute interaction to avoid checkbox event storms",
-    "Established GitHub canonical continuity/security/state scaffolding for public-repo AI handoff"
+    "Established GitHub canonical continuity/security/state scaffolding for public-repo AI handoff",
+    "Reconstructed and committed a sanitized public Go/Win32 source tree without production credentials, private endpoint URLs, raw diagnostics, or employee snapshots",
+    "Added Excel-derived core business model and regression unit tests for tenure sorting, manual shift priority, even-credit logic, and percent typing",
+    "Added public-source binary guard and repository sensitive-value guard",
+    "Added GitHub Actions Windows x64 portable build artifact workflow",
+    "Added GitHub Actions versioned release workflow with stable tags published as normal releases and hyphenated test tags as prereleases",
+    "Added non-fatal GitHub release update-check foundation in the application"
   ],
-  "current_task": "Import and sanitize the current v1.3 source, then establish reproducible GitHub Actions build/release.",
-  "next_action": "Import the current v1.3 source after sanitization, add GitHub Actions Windows x64 build/release, then continue owner testing of v1.3 on PDA and Office and fix issues from sanitized diagnostics.",
+  "current_task": "Provision the private operational live-data profile locally without publishing internal endpoint bindings, then validate the GitHub-built executable on a company laptop.",
+  "next_action": "Implement a local encrypted runtime profile for private operational endpoints/data-source bindings, finish staged GitHub updater with SHA256/rollback/manual fallback, then owner-test the GitHub-built executable on PDA and Office.",
   "blockers": [
-    "Current v1.3 source has not yet been committed to this repository.",
-    "GitHub build/release pipeline cannot be finalized until canonical source is present."
+    "Private operational endpoint/data-source bindings are intentionally excluded from the public repository and need a local provisioning mechanism before the public GitHub build can provide full live Pick/Pack/Active-Picking parity.",
+    "GitHub Actions workflows are committed, but connector-created repository events did not expose a workflow run for verification; first external push/manual workflow dispatch must confirm the remote build.",
+    "The public source is a sanitized reconstruction, not a bit-for-bit copy of the earlier private V1.3 test source and is not owner-accepted until target-laptop testing."
   ],
   "known_issues": [
-    "v1.3 PICK flicker fix requires owner verification on the company laptop.",
-    "Full end-to-end parity against the Excel reference still requires continued real-data verification.",
-    "GitHub-based updater is planned but not yet integrated into the application."
+    "Public source currently validates the imported cURL session but does not yet bind all private live operational endpoints required for complete live Pick/Pack/Active-Picking synchronization.",
+    "GitHub updater currently checks the latest stable release and opens the Release page; automatic staged replacement, SHA256 verification, rollback, and manual offline package install are still pending.",
+    "Overview public reconstruction reports memory/runtime metrics but full process/system CPU telemetry still needs parity work.",
+    "PICK numeric target/quota controls in the public reconstruction are not yet all exposed as editable on-screen fields.",
+    "User/PDA public build intentionally contains no bundled company snapshot; live/local source binding is pending.",
+    "V1.3 PICK flicker/event-storm fix still requires owner verification on the target company laptop."
   ],
   "test_status": {
     "v1.1": "superseded",
     "v1.2": "superseded",
-    "v1.3": "owner_test_pending",
-    "pda_network": "retest_v1.3_required",
-    "office_network": "retest_v1.3_required"
+    "v1.3-private-test": "owner_test_pending",
+    "v1.3.1-public-source-test": "local_cross_build_and_core_tests_passed_remote_actions_pending",
+    "pda_network": "retest_public_build_required",
+    "office_network": "retest_public_build_required"
   },
   "security": {
     "public_repo": true,
@@ -84,6 +87,16 @@
     "handover": "docs/HANDOVER.md",
     "build_release": "docs/BUILD_RELEASE_PLAN.md",
     "resources": "ops/resource-registry.json",
-    "next_action": "NEXT_ACTION.md"
+    "next_action": "NEXT_ACTION.md",
+    "runtime_profile": "docs/RUNTIME_PROFILE.md"
+  },
+  "build_pipeline": {
+    "source_in_repo": true,
+    "windows_x64_workflow": ".github/workflows/build.yml",
+    "release_workflow": ".github/workflows/release.yml",
+    "local_cross_build": "passed",
+    "core_unit_tests": "passed",
+    "local_binary_public_guard": "passed",
+    "remote_actions_verification": "pending_external_trigger"
   }
 }
