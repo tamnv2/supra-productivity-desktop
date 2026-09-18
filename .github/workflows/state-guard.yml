@@ -1,0 +1,28 @@
+name: Project State Guard
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate canonical project state
+        run: python scripts/validate_project_state.py
+
+      - name: Scan for likely sensitive values
+        run: python scripts/validate_public_repo.py
