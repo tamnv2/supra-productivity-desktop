@@ -4,48 +4,62 @@
 
 `tamnv2/supra-productivity-desktop` — public.
 
-## Build goal
+## Current build pipeline
 
-GitHub Actions must produce a reproducible Windows x64 portable build from canonical source.
+`.github/workflows/build.yml`
 
-Planned release assets:
+On main pushes, pull requests, or manual dispatch it will:
+
+1. validate canonical project state;
+2. scan public text files for likely sensitive values;
+3. run core unit tests and Go vet;
+4. cross-build Windows x64 portable EXE;
+5. scan the built binary for embedded secrets/private URL hosts;
+6. create SHA256;
+7. package and upload the Windows artifact.
+
+## Release pipeline
+
+`.github/workflows/release.yml`
+
+Version format: `vX.Y.Z` or a hyphenated test version such as `v1.4.0-test.1`.
+
+Assets:
 - `SupraProductivity.exe`
-- `SupraProductivity_<version>.zip`
 - `SHA256SUMS.txt`
-- release notes derived from `CHANGELOG.md`.
+- `SupraProductivity_<version>_windows_x64.zip`
 
-## Release trigger
+Stable tags without a hyphen create normal releases. Hyphenated test versions are prereleases.
 
-Preferred:
-- CI build/test on push and pull request.
-- Release build on version tag `vX.Y.Z`.
+## Updater
 
-## Updater behavior
+Implemented foundation:
+- non-fatal GitHub release check;
+- no dependency on GitHub for core startup/operation;
+- blocked GitHub on Office network is treated as an update-check limitation, not network failure.
 
-When GitHub is reachable:
-1. query latest compatible GitHub Release;
-2. compare semantic version;
-3. download release ZIP/EXE;
-4. validate SHA256;
-5. stage update;
-6. close current app;
-7. atomically replace executable using a helper/updater;
-8. restart;
-9. rollback if replacement/startup fails.
+Still required:
+1. download release asset;
+2. verify SHA256;
+3. stage new executable;
+4. back up current executable;
+5. replace after app exit;
+6. restart;
+7. rollback on replacement/start failure where technically possible;
+8. support manual/offline package selection for restricted Office network.
 
-## Restricted Office network
+## Private operational configuration
 
-GitHub may be blocked. Therefore:
-- updater failure must never block normal application startup or operation;
-- show only a non-fatal "cannot check updates on this network" state;
-- support manual/offline update package selection;
-- optionally add an owner-approved reachable mirror later.
+Production endpoint bindings are not embedded in public source or GitHub Releases.
 
-## Public-repo security
+See `docs/RUNTIME_PROFILE.md`.
 
-Builds must never require production credentials from repository files.
-Runtime credentials are user-supplied locally.
+## Security
 
-## Current status
+A release is invalid if any guard detects credentials, private endpoint URLs, raw company data, or unsanitized diagnostics.
 
-Build/release workflow is intentionally not finalized until the current V1.3 source is committed and sanitized.
+## Current verification status
+
+Local core tests, Windows cross-build, and binary public guard passed on the reconstructed sanitized source.
+
+Remote GitHub Actions execution still needs an external/manual trigger because connector-created events did not expose a run during this session.
