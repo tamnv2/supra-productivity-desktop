@@ -78,6 +78,10 @@ jobs:
         run: |
           set -euo pipefail
           ASSET="dist/SupraProductivity_${VERSION}_windows_x64.zip"
+          PRERELEASE_ARGS=()
+          if [[ "$VERSION" == *-* ]]; then
+            PRERELEASE_ARGS+=(--prerelease)
+          fi
           if gh release view "$VERSION" >/dev/null 2>&1; then
             gh release upload "$VERSION" dist/SupraProductivity.exe dist/SHA256SUMS.txt "$ASSET" --clobber
           else
@@ -87,5 +91,5 @@ jobs:
               "$ASSET" \
               --title "SUPRA PRODUCTIVITY $VERSION" \
               --generate-notes \
-              --prerelease
+              "${PRERELEASE_ARGS[@]}"
           fi
