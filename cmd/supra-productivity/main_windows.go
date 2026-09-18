@@ -218,3 +218,191 @@ const (
 	kindPercent
 	kindDate
 	kindTenure
+	kindBool
+)
+
+var (
+	user32               = syscall.NewLazyDLL("user32.dll")
+	kernel32             = syscall.NewLazyDLL("kernel32.dll")
+	gdi32                = syscall.NewLazyDLL("gdi32.dll")
+	comctl32             = syscall.NewLazyDLL("comctl32.dll")
+	crypt32              = syscall.NewLazyDLL("crypt32.dll")
+	shell32              = syscall.NewLazyDLL("shell32.dll")
+	psapi                = syscall.NewLazyDLL("psapi.dll")
+	pRegisterClass       = user32.NewProc("RegisterClassExW")
+	pCreateWindow        = user32.NewProc("CreateWindowExW")
+	pDefWindowProc       = user32.NewProc("DefWindowProcW")
+	pShowWindow          = user32.NewProc("ShowWindow")
+	pUpdateWindow        = user32.NewProc("UpdateWindow")
+	pGetMessage          = user32.NewProc("GetMessageW")
+	pTranslateMessage    = user32.NewProc("TranslateMessage")
+	pDispatchMessage     = user32.NewProc("DispatchMessageW")
+	pPostQuit            = user32.NewProc("PostQuitMessage")
+	pPostMessage         = user32.NewProc("PostMessageW")
+	pSendMessage         = user32.NewProc("SendMessageW")
+	pDestroyWindow       = user32.NewProc("DestroyWindow")
+	pGetClientRect       = user32.NewProc("GetClientRect")
+	pMoveWindow          = user32.NewProc("MoveWindow")
+	pSetWindowText       = user32.NewProc("SetWindowTextW")
+	pGetWindowTextLength = user32.NewProc("GetWindowTextLengthW")
+	pGetWindowText       = user32.NewProc("GetWindowTextW")
+	pLoadCursor          = user32.NewProc("LoadCursorW")
+	pSetTimer            = user32.NewProc("SetTimer")
+	pKillTimer           = user32.NewProc("KillTimer")
+	pMessageBox          = user32.NewProc("MessageBoxW")
+	pCreateFont          = gdi32.NewProc("CreateFontW")
+	pInitCommon          = comctl32.NewProc("InitCommonControls")
+	pCryptProtect        = crypt32.NewProc("CryptProtectData")
+	pCryptUnprotect      = crypt32.NewProc("CryptUnprotectData")
+	pLocalFree           = kernel32.NewProc("LocalFree")
+	pGlobalMemory        = kernel32.NewProc("GlobalMemoryStatusEx")
+	pShellExecute        = shell32.NewProc("ShellExecuteW")
+	pGetProcMem          = psapi.NewProc("GetProcessMemoryInfo")
+	pGetCurrentProcess   = kernel32.NewProc("GetCurrentProcess")
+)
+
+var (
+	mainWnd, statusText, headerText, tableWnd, settingsCurl, settingsSummary, logEdit, overviewMetric uintptr
+	nav                                                                                               = map[int]uintptr{}
+	pageControls                                                                                      []uintptr
+	fontNormal, fontSmall, fontBold                                                                   uintptr
+	currentPage                                                                                       = ID_NAV_OVERVIEW
+	currentTable                                                                                      *tableModel
+	settings                                                                                          appSettings
+	creds                                                                                             credentials
+	revealSecrets                                                                                     bool
+	live                                                                                              liveState
+	liveMu                                                                                            sync.RWMutex
+	busy                                                                                              atomic.Bool
+	pendingStatus                                                                                     string
+	statusMu                                                                                          sync.Mutex
+	activeCombo, pickShiftCombo, packShiftCombo, shiftManualCombo                                     uintptr
+)
+
+func ptr(s string) *uint16 { p, _ := syscall.UTF16PtrFromString(s); return p }
+func create(class, text string, style uint32, x, y, w, h int, parent, menu uintptr) uintptr {
+	r, _, _ := pCreateWindow.Call(0, uintptr(unsafe.Pointer(ptr(class))), uintptr(unsafe.Pointer(ptr(text))), uintptr(style), uintptr(x), uintptr(y), uintptr(w), uintptr(h), parent, menu, 0, 0)
+	return r
+}
+func setFont(h, f uintptr) { pSendMessage.Call(h, WM_SETFONT, f, 1) }
+func setText(h uintptr, s string) {
+	if h != 0 {
+		pSetWindowText.Call(h, uintptr(unsafe.Pointer(ptr(s))))
+	}
+}
+func getText(h uintptr) string {
+	n, _, _ := pGetWindowTextLength.Call(h)
+	if n == 0 { return "" }
+	b := make([]uint16, n+1)
+	pGetWindowText.Call(h, uintptr(unsafe.Pointer(&b[0])), n+1)
+	return syscall.UTF16ToString(b)
+}
+func move(h uintptr, x, y, w, hh int) {
+	if h != 0 { pMoveWindow.Call(h, uintptr(x), uintptr(y), uintptr(w), uintptr(hh), 1) }
+}
+func addPage(h uintptr) { pageControls = append(pageControls, h) }
+func destroyPage() {
+	for _, h := range pageControls { pDestroyWindow.Call(h) }
+	pageControls = nil
+	tableWnd = 0
+	currentTable = nil
+	settingsCurl = 0
+	settingsSummary = 0
+	logEdit = 0
+	activeCombo = 0
+	pickShiftCombo = 0
+	packShiftCombo = 0
+	shiftManualCombo = 0
+	overviewMetric = 0
+}
+func static(text string, x, y, w, h int, bold bool) uintptr {
+	c := create("STATIC", text, WS_CHILD|WS_VISIBLE|SS_LEFT, x, y, w, h, mainWnd, 0)
+	if bold { setFont(c, fontBold) } else { setFont(c, fontNormal) }
+	addPage(c)
+	return c
+}
+func button(id int, text string, x, y, w, h int) uintptr {
+	b := create("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, x, y, w, h, mainWnd, uintptr(id))
+	setFont(b, fontNormal); addPage(b); return b
+}
+func checkbox(id int, text string, x, y, w, h int, checked bool) uintptr {
+	b := create("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTOCHECKBOX, x, y, w, h, mainWnd, uintptr(id))
+	setFont(b, fontSmall)
+	if checked { pSendMessage.Call(b, BM_SETCHECK, BST_CHECKED, 0) }
+	addPage(b); return b
+}
+func checked(h uintptr) bool {
+	r, _, _ := pSendMessage.Call(h, BM_GETCHECK, 0, 0)
+	return r == BST_CHECKED
+}
+func combo(id int, items []string, selected string, x, y, w, h int) uintptr {
+	c := create("COMBOBOX", "", WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_VSCROLL|CBS_DROPDOWNLIST, x, y, w, h, mainWnd, uintptr(id))
+	setFont(c, fontNormal)
+	sel := 0
+	for i, s := range items {
+		pSendMessage.Call(c, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(ptr(s))))
+		if strings.EqualFold(s, selected) { sel = i }
+	}
+	pSendMessage.Call(c, CB_SETCURSEL, uintptr(sel), 0)
+	addPage(c); return c
+}
+func comboText(h uintptr) string {
+	r, _, _ := pSendMessage.Call(h, CB_GETCURSEL, 0, 0)
+	if int32(r) < 0 { return "" }
+	n, _, _ := pSendMessage.Call(h, CB_GETLBTEXTLEN, r, 0)
+	b := make([]uint16, n+2)
+	pSendMessage.Call(h, CB_GETLBTEXT, r, uintptr(unsafe.Pointer(&b[0])))
+	return syscall.UTF16ToString(b)
+}
+
+func addListColumn(lv uintptr, idx int, text string, width int) {
+	c := LVCOLUMN{Mask: LVCF_FMT | LVCF_WIDTH | LVCF_TEXT, Fmt: LVCFMT_LEFT, Cx: int32(width), PszText: ptr(text)}
+	pSendMessage.Call(lv, LVM_INSERTCOLUMNW, uintptr(idx), uintptr(unsafe.Pointer(&c)))
+}
+func addListRow(lv uintptr, row int, vals []string) {
+	if len(vals) == 0 { return }
+	it := LVITEM{Mask: LVIF_TEXT, IItem: int32(row), PszText: ptr(vals[0])}
+	pSendMessage.Call(lv, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&it)))
+	for i := 1; i < len(vals); i++ {
+		it2 := LVITEM{ISubItem: int32(i), PszText: ptr(vals[i])}
+		pSendMessage.Call(lv, LVM_SETITEMTEXTW, uintptr(row), uintptr(unsafe.Pointer(&it2)))
+	}
+}
+
+func inferKind(h string) colKind {
+	n := strings.ToLower(strings.TrimSpace(h))
+	switch {
+	case strings.Contains(n, "tuổi nghề") || strings.Contains(n, "tuoi nghe"):
+		return kindTenure
+	case strings.Contains(n, "tỉ lệ") || strings.Contains(n, "tiến độ") || strings.Contains(n, "%") || strings.Contains(n, "ty le"):
+		return kindPercent
+	case strings.Contains(n, "thời gian bắt đầu") || strings.Contains(n, "thời gian kết thúc đơn") && !strings.Contains(n, "cuối cùng"):
+		return kindDate
+	case strings.HasPrefix(n, "do ") || strings.HasPrefix(n, "sl ") || strings.Contains(n, "nsld") || strings.Contains(n, "mã nhân viên") || strings.Contains(n, "site") || strings.Contains(n, "tốc độ"):
+		return kindNumber
+	case strings.Contains(n, "bỏ qua") || strings.Contains(n, "kiểm tra 20"):
+		return kindBool
+	}
+	return kindText
+}
+func formatCell(v any, k colKind) string {
+	if v == nil { return "" }
+	switch k {
+	case kindPercent:
+		f, ok := core.ToFloat(v); if ok { return fmt.Sprintf("%.1f%%", f*100) }
+	case kindDate:
+		switch x := v.(type) {
+		case time.Time:
+			if x.IsZero() { return "" }
+			return x.Format("02/01/2006 15:04:05")
+		}
+	case kindBool:
+		if b, ok := v.(bool); ok { if b { return "Có" }; return "Không" }
+	case kindNumber:
+		if f, ok := core.ToFloat(v); ok {
+			if f == float64(int64(f)) { return strconv.FormatInt(int64(f), 10) }
+			return strconv.FormatFloat(f, 'f', 2, 64)
+		}
+	}
+	return fmt.Sprint(v)
+}
