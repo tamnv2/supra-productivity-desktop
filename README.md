@@ -46,3 +46,14 @@ Read `docs/SECURITY_PUBLIC_REPO.md` before adding code, fixtures, logs, screensh
 Machine-readable status: `ops/project-state.json`
 
 Immediate work: `NEXT_ACTION.md`
+
+
+## Build from GitHub
+
+- `Build Windows Portable` creates a Windows x64 portable artifact.
+- `Release Windows Portable` packages versioned GitHub Release assets.
+- Stable tags use `vX.Y.Z`; test tags can use `vX.Y.Z-test.N`.
+- Public builds intentionally contain no production credentials, internal endpoint bindings, or company snapshots.
+- Private live-data bindings are provisioned locally; see `docs/RUNTIME_PROFILE.md`.
+
+The current public source is a sanitized reconstruction under active parity testing. It must not be treated as owner-accepted stable software until the target-laptop tests pass.
