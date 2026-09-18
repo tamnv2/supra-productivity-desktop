@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-09-19",
+  "repository": {
+    "provider": "GitHub",
+    "full_name": "tamnv2/supra-productivity-desktop",
+    "visibility": "public",
+    "role": [
+      "canonical-source",
+      "project-state",
+      "build-release",
+      "sanitized-documentation"
+    ]
+  },
+  "runtime": {
+    "os": "Windows",
+    "arch": "x64",
+    "deployment": "portable",
+    "required_privilege": "standard-user"
+  },
+  "external_systems": [
+    {
+      "name": "Internal Dashboard",
+      "purpose": "live operational data",
+      "endpoint_publication": "forbidden",
+      "credential_publication": "forbidden",
+      "runtime_input": "user pastes Copy-as-cURL bash; app parses required fields locally"
+    },
+    {
+      "name": "Internal payroll/productivity export",
+      "purpose": "Pick/Pack productivity data",
+      "endpoint_publication": "forbidden",
+      "credential_publication": "forbidden"
+    }
+  ],
+  "network_profiles": [
+    {
+      "name": "PDA",
+      "requirement": "full operational connectivity when services are reachable"
+    },
+    {
+      "name": "Office restricted",
+      "requirement": "core internal operations must continue even when public Internet/GitHub is blocked"
+    }
+  ],
+  "sensitive_values": {
+    "stored_in_repo": false,
+    "examples": [
+      "authorization token",
+      "cookies",
+      "APISID",
+      "USID",
+      "x-signature",
+      "x-signature-nonce",
+      "passwords",
+      "private endpoint URLs"
+    ]
+  }
+}
