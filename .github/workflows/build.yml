@@ -1,0 +1,72 @@
+name: Build Windows Portable
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate canonical project state
+        run: python scripts/validate_project_state.py
+
+      - name: Validate public repository
+        run: python scripts/validate_public_repo.py
+
+      - name: Unit tests
+        run: go test ./internal/core
+
+      - name: Go vet core
+        run: go vet ./internal/core
+
+      - name: Cross-build Windows x64
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          VERSION="dev-${GITHUB_SHA::7}"
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+            go build -trimpath \
+            -ldflags="-s -w -H=windowsgui -X main.appVersion=${VERSION}" \
+            -o dist/SupraProductivity.exe ./cmd/supra-productivity
+
+      - name: Scan public binary
+        run: python scripts/scan_binary.py dist/SupraProductivity.exe
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum SupraProductivity.exe > SHA256SUMS.txt
+          zip -9 SupraProductivity_windows_x64.zip SupraProductivity.exe SHA256SUMS.txt
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SupraProductivity-windows-x64
+          path: |
+            dist/SupraProductivity.exe
+            dist/SHA256SUMS.txt
+            dist/SupraProductivity_windows_x64.zip
+          if-no-files-found: error
