@@ -683,3 +683,340 @@ func recalculate() {
 	liveMu.Lock(); defer liveMu.Unlock()
 	if len(live.Payroll) == 0 { return }
 	p, pa, sh := core.BuildTables(live.Payroll, settings.Business, time.Now())
+	live.Pick = p
+	live.Pack = pa
+	live.Shift = sh
+}
+func applyManualShift() {
+	row, ok := selectedRow()
+	if !ok {
+		return
+	}
+	user, job := "", ""
+	for i, h := range currentTable.data.Headers {
+		if i >= len(row) {
+			continue
+		}
+		if strings.EqualFold(h, "User") {
+			user = fmt.Sprint(row[i])
+		}
+		if strings.EqualFold(h, "Loại công việc") {
+			job = fmt.Sprint(row[i])
+		}
+	}
+	if user == "" {
+		return
+	}
+	v := comboText(shiftManualCombo)
+	if settings.Business.ManualShifts == nil {
+		settings.Business.ManualShifts = map[string]string{}
+	}
+	k := core.ManualShiftKey(user, job)
+	if v == "Tự động" {
+		delete(settings.Business.ManualShifts, k)
+	} else {
+		settings.Business.ManualShifts[k] = v
+	}
+	saveSettings()
+	recalculate()
+	logEvent("INFO", "MANUAL_SHIFT_CHANGE", "user_hash", shortHash(user), "value", v)
+	renderPage(ID_NAV_SHIFT)
+}
+
+func startSync() {
+	if !busy.CompareAndSwap(false, true) {
+		setStatus("Đang đồng bộ; không tạo thêm tác vụ chồng nhau.")
+		return
+	}
+	setStatus("Đang đồng bộ…")
+	logEvent("INFO", "SYNC_START")
+	go func() {
+		defer busy.Store(false)
+		defer pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0) // Public source intentionally externalizes private operational endpoints.
+		if creds.URL == "" {
+			setStatus("Chưa có phiên Dashboard. Vào Thiết lập → dán cURL bash.")
+			logEvent("WARN", "SYNC_NO_CREDENTIAL")
+			return
+		}
+		if err := requestProbe(creds); err != nil {
+			setStatus("Kết nối phiên lỗi; giữ dữ liệu cũ.")
+			logEvent("ERROR", "SYNC_PROBE_FAILED", "error", err.Error())
+			return
+		}
+		setStatus("Phiên hợp lệ. Nguồn live nghiệp vụ được provision cục bộ, không lưu trong repo public.")
+		logEvent("INFO", "SYNC_SESSION_OK")
+	}()
+}
+
+var reHeader = regexp.MustCompile(`(?is)-H\s+(?:'([^']*)'|"([^"]*)")`)
+var reURL = regexp.MustCompile(`(?is)(?:--url\s+)?(?:'(https?://[^']+)'|"(https?://[^"]+)"|(https?://\S+))`)
+var reMethod = regexp.MustCompile(`(?i)(?:-X|--request)\s+['"]?([A-Z]+)`)
+var reBody = regexp.MustCompile(`(?is)(?:--data-raw|--data-binary|--data)\s+(?:'([^']*)'|"([^"]*)")`)
+
+func parseCurl(raw string) (credentials, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return credentials{}, fmt.Errorf("cURL trống")
+	}
+	m := reURL.FindStringSubmatch(raw)
+	u := ""
+	if len(m) > 1 {
+		for _, x := range m[1:] {
+			if x != "" {
+				u = x
+				break
+			}
+		}
+	}
+	if u == "" {
+		return credentials{}, fmt.Errorf("không tìm thấy URL")
+	}
+	if _, e := url.ParseRequestURI(u); e != nil {
+		return credentials{}, fmt.Errorf("URL không hợp lệ")
+	}
+	c := credentials{URL: u, Method: "GET", OtherHeaders: map[string]string{}, ImportedAt: time.Now().Format(time.RFC3339)}
+	if mm := reMethod.FindStringSubmatch(raw); len(mm) > 1 {
+		c.Method = strings.ToUpper(mm[1])
+	}
+	if bm := reBody.FindStringSubmatch(raw); len(bm) > 1 {
+		for _, x := range bm[1:] {
+			if x != "" {
+				c.Body = x
+				break
+			}
+		}
+		if c.Method == "GET" {
+			c.Method = "POST"
+		}
+	}
+	for _, hm := range reHeader.FindAllStringSubmatch(raw, -1) {
+		h := ""
+		if hm[1] != "" {
+			h = hm[1]
+		} else {
+			h = hm[2]
+		}
+		parts := strings.SplitN(h, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		k, v := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+		lk := strings.ToLower(k)
+		switch lk {
+		case "authorization":
+			c.Authorization = v
+			c.Token = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(v, "Bearer"), "bearer"))
+		case "x-signature":
+			c.Signature = v
+		case "x-signature-nonce":
+			c.Nonce = v
+		case "user-agent":
+			c.UserAgent = v
+		case "cookie":
+			for _, p := range strings.Split(v, ";") {
+				q := strings.SplitN(strings.TrimSpace(p), "=", 2)
+				if len(q) != 2 {
+					continue
+				}
+				switch strings.ToUpper(q[0]) {
+				case "APISID":
+					c.APISID = q[1]
+				case "USID":
+					c.USID = q[1]
+				}
+			}
+		default:
+			c.OtherHeaders[k] = v
+		}
+	}
+	return c, nil
+}
+func importCurl() {
+	raw := getText(settingsCurl)
+	c, e := parseCurl(raw)
+	setText(settingsCurl, "")
+	if e != nil {
+		setStatus("Không nhận được cURL: " + e.Error())
+		logEvent("WARN", "CURL_IMPORT_FAILED", "error", e.Error())
+		return
+	}
+	creds = c
+	if e = saveCredentials(); e != nil {
+		setStatus("Không lưu được phiên: " + e.Error())
+		logEvent("ERROR", "CREDENTIAL_SAVE_FAILED", "error", e.Error())
+		return
+	}
+	setText(settingsSummary, credentialSummary())
+	setStatus("Đã nhận cấu hình; cURL gốc đã xóa khỏi ô nhập.")
+	logEvent("INFO", "CURL_IMPORTED", "authorization_present", strconv.FormatBool(c.Authorization != ""), "signature_present", strconv.FormatBool(c.Signature != ""))
+}
+func mask(s string) string {
+	if s == "" {
+		return "—"
+	}
+	if revealSecrets {
+		return s
+	}
+	r := []rune(s)
+	if len(r) <= 8 {
+		return "••••••••"
+	}
+	return string(r[:4]) + "••••••••" + string(r[len(r)-4:])
+}
+func credentialSummary() string {
+	return "Authorization/Token: " + mask(firstNonEmpty(creds.Token, creds.Authorization)) + "\r\nAPISID: " + mask(creds.APISID) + "    USID: " + mask(creds.USID) + "\r\nx-signature: " + mask(creds.Signature) + "    nonce: " + mask(creds.Nonce) + "\r\nRequest URL: " + map[bool]string{true: "Đã nhận", false: "Chưa có"}[creds.URL != ""]
+}
+func firstNonEmpty(v ...string) string {
+	for _, s := range v {
+		if strings.TrimSpace(s) != "" {
+			return s
+		}
+	}
+	return ""
+}
+
+func requestProbe(c credentials) error {
+	client := &http.Client{Timeout: 15 * time.Second}
+	var body io.Reader
+	if c.Body != "" {
+		body = strings.NewReader(c.Body)
+	}
+	req, e := http.NewRequest(c.Method, c.URL, body)
+	if e != nil {
+		return e
+	}
+	if c.Authorization != "" {
+		req.Header.Set("Authorization", c.Authorization)
+	}
+	if c.Signature != "" {
+		req.Header.Set("x-signature", c.Signature)
+	}
+	if c.Nonce != "" {
+		req.Header.Set("x-signature-nonce", c.Nonce)
+	}
+	if c.UserAgent != "" {
+		req.Header.Set("User-Agent", c.UserAgent)
+	}
+	for k, v := range c.OtherHeaders {
+		if !isSensitiveHeader(k) {
+			req.Header.Set(k, v)
+		}
+	}
+	resp, e := client.Do(req)
+	if e != nil {
+		return e
+	}
+	defer resp.Body.Close()
+	io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	return nil
+}
+func networkTest() {
+	if creds.URL == "" {
+		setStatus("Chưa có cURL để kiểm tra.")
+		return
+	}
+	setStatus("Đang kiểm tra kết nối…")
+	start := time.Now()
+	e := requestProbe(creds)
+	if e != nil {
+		setStatus("Kiểm tra lỗi: " + e.Error())
+		logEvent("WARN", "NETWORK_TEST_FAILED", "elapsed_ms", strconv.FormatInt(time.Since(start).Milliseconds(), 10), "error", e.Error())
+		return
+	}
+	setStatus("Kết nối phiên hoạt động.")
+	logEvent("INFO", "NETWORK_TEST_OK", "elapsed_ms", strconv.FormatInt(time.Since(start).Milliseconds(), 10))
+}
+func isSensitiveHeader(k string) bool {
+	n := strings.ToLower(k)
+	return strings.Contains(n, "token") || strings.Contains(n, "authorization") || strings.Contains(n, "cookie") || strings.Contains(n, "signature") || n == "apisid" || n == "usid" || strings.Contains(n, "password")
+}
+
+func appDir() string {
+	p, _ := os.UserConfigDir()
+	if p == "" {
+		p = os.TempDir()
+	}
+	return filepath.Join(p, "Supra", "Productivity")
+}
+func secureDir() string    { return filepath.Join(appDir(), "Secure") }
+func settingsPath() string { return filepath.Join(appDir(), "settings.json") }
+func logDir() string {
+	if settings.DataFolder != "" {
+		return filepath.Join(settings.DataFolder, "Logs")
+	}
+	return filepath.Join(appDir(), "Logs")
+}
+func ensureDirs() {
+	os.MkdirAll(appDir(), 0700)
+	os.MkdirAll(secureDir(), 0700)
+	os.MkdirAll(logDir(), 0700)
+}
+func loadSettings() {
+	settings = appSettings{DataFolder: filepath.Join(appDir(), "Data"), Business: core.DefaultBusinessSettings()}
+	b, e := os.ReadFile(settingsPath())
+	if e == nil {
+		_ = json.Unmarshal(b, &settings)
+	}
+	core.NormalizeBusinessSettings(&settings.Business)
+	ensureDirs()
+}
+func saveSettings() {
+	ensureDirs()
+	b, _ := json.MarshalIndent(settings, "", "  ")
+	_ = os.WriteFile(settingsPath(), b, 0600)
+}
+func protect(data []byte) ([]byte, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	in := DATA_BLOB{CbData: uint32(len(data)), PbData: &data[0]}
+	var out DATA_BLOB
+	r, _, e := pCryptProtect.Call(uintptr(unsafe.Pointer(&in)), 0, 0, 0, 0, CRYPTPROTECT_UI_FORBIDDEN, uintptr(unsafe.Pointer(&out)))
+	if r == 0 {
+		return nil, e
+	}
+	defer pLocalFree.Call(uintptr(unsafe.Pointer(out.PbData)))
+	return append([]byte(nil), unsafe.Slice(out.PbData, out.CbData)...), nil
+}
+func unprotect(data []byte) ([]byte, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	in := DATA_BLOB{CbData: uint32(len(data)), PbData: &data[0]}
+	var out DATA_BLOB
+	r, _, e := pCryptUnprotect.Call(uintptr(unsafe.Pointer(&in)), 0, 0, 0, 0, CRYPTPROTECT_UI_FORBIDDEN, uintptr(unsafe.Pointer(&out)))
+	if r == 0 {
+		return nil, e
+	}
+	defer pLocalFree.Call(uintptr(unsafe.Pointer(out.PbData)))
+	return append([]byte(nil), unsafe.Slice(out.PbData, out.CbData)...), nil
+}
+func saveCredentials() error {
+	ensureDirs()
+	b, e := json.Marshal(creds)
+	if e != nil {
+		return e
+	}
+	p, e := protect(b)
+	if e != nil {
+		return e
+	}
+	return os.WriteFile(filepath.Join(secureDir(), "credentials.dat"), []byte(base64.StdEncoding.EncodeToString(p)), 0600)
+}
+func loadCredentials() {
+	raw, e := os.ReadFile(filepath.Join(secureDir(), "credentials.dat"))
+	if e != nil {
+		return
+	}
+	enc, e := base64.StdEncoding.DecodeString(string(raw))
+	if e != nil {
+		return
+	}
+	plain, e := unprotect(enc)
+	if e != nil {
+		return
+	}
+	
