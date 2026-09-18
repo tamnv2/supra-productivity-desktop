@@ -46,9 +46,10 @@
     "Added business controls to their operational screens instead of Settings",
     "Added manual shift selection",
     "Added expanded diagnostics and performance logging",
-    "Changed PICK skip-20-minute interaction to avoid checkbox event storms"
+    "Changed PICK skip-20-minute interaction to avoid checkbox event storms",
+    "Established GitHub canonical continuity/security/state scaffolding for public-repo AI handoff"
   ],
-  "current_task": "Bootstrap the public GitHub repository as the canonical source of project state and AI/session continuity.",
+  "current_task": "Import and sanitize the current v1.3 source, then establish reproducible GitHub Actions build/release.",
   "next_action": "Import the current v1.3 source after sanitization, add GitHub Actions Windows x64 build/release, then continue owner testing of v1.3 on PDA and Office and fix issues from sanitized diagnostics.",
   "blockers": [
     "Current v1.3 source has not yet been committed to this repository.",
