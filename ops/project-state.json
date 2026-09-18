@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "project_id": "supra-productivity-desktop",
+  "project_name": "SUPRA PRODUCTIVITY DESKTOP",
+  "repository": "tamnv2/supra-productivity-desktop",
+  "repository_visibility": "public",
+  "updated_at": "2026-09-19",
+  "current_version": "v1.3-test",
+  "current_phase": "functional-parity-and-stabilization",
+  "current_status": "active_test",
+  "implementation": {
+    "platform": "Windows x64",
+    "distribution": "portable",
+    "privilege": "standard-user",
+    "runtime_excel_dependency": false,
+    "current_prototype_stack": "Go + native Windows UI"
+  },
+  "product_scope": {
+    "keep": [
+      "overview",
+      "active-picking",
+      "pick",
+      "pack",
+      "manual-and-auto-shift",
+      "user-pda",
+      "diagnostics-log",
+      "token-curl-input",
+      "typed-table-sorting",
+      "double-click-details",
+      "pick-business-rules"
+    ],
+    "removed_by_owner": [
+      "R01",
+      "R02",
+      "R03",
+      "R04",
+      "R07",
+      "R08"
+    ]
+  },
+  "last_completed": [
+    "Built v1.3 test executable",
+    "Moved expensive network work away from the UI thread",
+    "Added cURL bash credential parsing with sensitive-value masking",
+    "Added Office/PDA adaptive network strategy",
+    "Added business controls to their operational screens instead of Settings",
+    "Added manual shift selection",
+    "Added expanded diagnostics and performance logging",
+    "Changed PICK skip-20-minute interaction to avoid checkbox event storms"
+  ],
+  "current_task": "Bootstrap the public GitHub repository as the canonical source of project state and AI/session continuity.",
+  "next_action": "Import the current v1.3 source after sanitization, add GitHub Actions Windows x64 build/release, then continue owner testing of v1.3 on PDA and Office and fix issues from sanitized diagnostics.",
+  "blockers": [
+    "Current v1.3 source has not yet been committed to this repository.",
+    "GitHub build/release pipeline cannot be finalized until canonical source is present."
+  ],
+  "known_issues": [
+    "v1.3 PICK flicker fix requires owner verification on the company laptop.",
+    "Full end-to-end parity against the Excel reference still requires continued real-data verification.",
+    "GitHub-based updater is planned but not yet integrated into the application."
+  ],
+  "test_status": {
+    "v1.1": "superseded",
+    "v1.2": "superseded",
+    "v1.3": "owner_test_pending",
+    "pda_network": "retest_v1.3_required",
+    "office_network": "retest_v1.3_required"
+  },
+  "security": {
+    "public_repo": true,
+    "credentials_in_repo": false,
+    "raw_logs_in_repo": false,
+    "raw_company_data_in_repo": false,
+    "credential_storage_runtime": "Windows DPAPI / current user",
+    "log_policy": "comprehensive but sanitized"
+  },
+  "canonical_docs": {
+    "bootstrap": "docs/AI_BOOTSTRAP.md",
+    "owner_decisions": "docs/OWNER_DECISIONS.md",
+    "stable_invariants": "docs/STABLE_INVARIANTS.md",
+    "known_issues": "docs/KNOWN_ISSUES.md",
+    "regression_policy": "docs/REGRESSION_GUARD_POLICY.md",
+    "handover": "docs/HANDOVER.md",
+    "build_release": "docs/BUILD_RELEASE_PLAN.md",
+    "resources": "ops/resource-registry.json",
+    "next_action": "NEXT_ACTION.md"
+  }
+}
