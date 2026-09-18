@@ -529,3 +529,157 @@ func renderPage(id int) {
 	}
 	layout(); logEvent("INFO", "UI_PAGE", "page", strconv.Itoa(id))
 }
+
+func renderOverview() {
+	pageTitle("TỔNG QUAN", "Vận hành, dữ liệu live và sức khoẻ laptop/ứng dụng theo thời gian thực")
+	liveMu.RLock(); ls := live; liveMu.RUnlock()
+	static(fmt.Sprintf("Pick: %d     Pack: %d     Phân ca: %d", len(ls.Pick.Rows), len(ls.Pack.Rows), len(ls.Shift.Rows)), 152, 120, 900, 30, true)
+	static("HỆ THỐNG & HIỆU NĂNG", 152, 175, 400, 28, true)
+	overviewMetric = static("Đang đo…", 152, 215, 1000, 28, false)
+	renderOverviewMetrics()
+	static("Dữ liệu được giữ cục bộ. GitHub/public Internet lỗi không làm dừng nghiệp vụ nội bộ.", 152, 345, 1000, 24, false)
+}
+func renderOverviewMetrics() {
+	if currentPage != ID_NAV_OVERVIEW { return }
+	var ms MEMORYSTATUSEX
+	ms.Length = uint32(unsafe.Sizeof(ms))
+	pGlobalMemory.Call(uintptr(unsafe.Pointer(&ms)))
+	var rm runtime.MemStats; runtime.ReadMemStats(&rm)
+	used := ms.TotalPhys - ms.AvailPhys
+	txt := fmt.Sprintf("RAM laptop: %.1f / %.1f GB (%.0f%%)     RAM Go heap: %.1f MB     Goroutine: %d", float64(used)/1e9, float64(ms.TotalPhys)/1e9, float64(ms.MemoryLoad), float64(rm.Alloc)/1024/1024, runtime.NumGoroutine())
+	if overviewMetric != 0 { setText(overviewMetric, txt) }
+}
+func renderActive() {
+	pageTitle("ĐANG LẤY HÀNG", "Lọc trạng thái áp dụng ngay; nhấp đúp dòng để xem chi tiết.")
+	static("Trạng thái", 152, 112, 75, 24, false)
+	activeCombo = combo(ID_ACTIVE_STATUS, []string{"Tất cả", "Đang lấy", "Quá thời gian", "Hoàn thành"}, settings.Business.ActiveStatus, 230, 106, 150, 200)
+	liveMu.RLock(); t := live.Active; liveMu.RUnlock()
+	renderTable(filterActive(t, settings.Business.ActiveStatus), 145)
+}
+func renderPick() {
+	pageTitle("PICK", "Target, tốc độ, khoán/chẵn-lẻ và kiểm tra 1C1L ở đúng màn nghiệp vụ.")
+	static("Ca", 152, 112, 25, 22, false)
+	pickShiftCombo = combo(ID_PICK_SHIFT, []string{"Tất cả", "Ca 1", "Ca 2", "Ca HC"}, settings.Business.PickShift, 180, 106, 100, 180)
+	checkbox(ID_PICK_DEDUCT, "Khấu trừ SKU", 300, 108, 120, 24, settings.Business.PickDeductSKU)
+	checkbox(ID_PICK_REQUIRE, "Kiểm tra đủ chẵn", 430, 108, 140, 24, settings.Business.PickRequireEven)
+	checkbox(ID_PICK_ALLSITE, "Hiện tất cả Site", 580, 108, 130, 24, settings.Business.ShowAllSite)
+	checkbox(ID_PICK_1C1L, "Bật 1 chẵn 1 lẻ", 720, 108, 140, 24, settings.Business.Enable1C1L)
+	checkbox(ID_PICK_INCOMPLETE, "Chỉ hiện chưa đủ chẵn", 870, 108, 170, 24, settings.Business.ShowIncompleteEven)
+	checkbox(ID_PICK_1C1LERR, "Chỉ hiện lỗi 1C1L", 1050, 108, 150, 24, settings.Business.Show1C1LErrors)
+	liveMu.RLock(); t := live.Pick; liveMu.RUnlock()
+	renderTable(t, 145)
+}
+func renderPack() {
+	pageTitle("PACK", "Chỉ hiển thị theo ca; chọn là áp dụng ngay.")
+	static("Hiển thị ca", 152, 112, 85, 22, false)
+	packShiftCombo = combo(ID_PACK_SHIFT, []string{"Tất cả", "Ca 1", "Ca 2", "Ca HC"}, settings.Business.PackShift, 240, 106, 120, 180)
+	liveMu.RLock(); t := live.Pack; liveMu.RUnlock()
+	renderTable(t, 145)
+}
+func renderShift() {
+	pageTitle("PHÂN CA", "Chọn một dòng, sau đó chọn Tự động / Ca 1 / Ca 2 / Ca HC.")
+	static("Phân ca thủ công", 152, 112, 120, 22, false)
+	shiftManualCombo = combo(ID_SHIFT_MANUAL, []string{"Tự động", "Ca 1", "Ca 2", "Ca HC"}, "Tự động", 280, 106, 130, 180)
+	liveMu.RLock(); t := live.Shift; liveMu.RUnlock()
+	renderTable(t, 145)
+}
+func renderUserPDA() {
+	pageTitle("USER / PDA", "Dữ liệu nhân sự live/local; không có dữ liệu cá nhân nào được đóng gói trong bản public.")
+	renderTable(core.Table{Headers: []string{"Họ và tên", "Mã nhân viên", "User", "Nhà cung cấp", "Site", "Vị trí công việc", "PDA", "Trạng thái"}}, 125)
+}
+func renderLog() {
+	pageTitle("NHẬT KÝ", "Toàn bộ sự kiện kỹ thuật cần thiết, tự loại thông tin nhạy cảm.")
+	button(ID_LOG_OPEN, "MỞ THƯ MỤC LOG", 152, 108, 160, 32)
+	button(ID_LOG_EXPORT, "XUẤT CHẨN ĐOÁN", 322, 108, 170, 32)
+	logEdit = create("EDIT", readLogTail(500), WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY, 152, 145, 1100, 560, mainWnd, 0)
+	setFont(logEdit, fontSmall); addPage(logEdit)
+}
+func renderSettings() {
+	pageTitle("THIẾT LẬP", "Chỉ quản lý phiên/token Dashboard. Nghiệp vụ đặt tại đúng màn Pick/Pack/Phân ca.")
+	static("PHIÊN DASHBOARD · DÁN cURL (BASH)", 152, 120, 420, 24, true)
+	settingsCurl = create("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL, 152, 150, 720, 120, mainWnd, 0)
+	setFont(settingsCurl, fontNormal); addPage(settingsCurl)
+	button(ID_CURL_IMPORT, "NHẬN CẤU HÌNH", 152, 282, 150, 32)
+	button(ID_SECRET_TOGGLE, "HIỆN / ẨN", 312, 282, 120, 32)
+	button(ID_NET_TEST, "KIỂM TRA", 442, 282, 120, 32)
+	settingsSummary = static(credentialSummary(), 152, 330, 900, 120, false)
+	static("Repo public không chứa endpoint nội bộ, credential, log thô hoặc dữ liệu nhân sự. Runtime profile nằm cục bộ theo Windows user.", 152, 465, 1000, 44, false)
+}
+
+func filterActive(t core.Table, status string) core.Table {
+	if status == "" || status == "Tất cả" { return t }
+	idx := -1
+	for i, h := range t.Headers { if strings.EqualFold(strings.TrimSpace(h), "Trạng thái") { idx = i; break } }
+	if idx < 0 { return t }
+	out := core.Table{Headers: append([]string(nil), t.Headers...)}
+	for _, r := range t.Rows { if idx < len(r) && strings.EqualFold(strings.TrimSpace(fmt.Sprint(r[idx])), status) { out.Rows = append(out.Rows, r) } }
+	return out
+}
+
+func handleNotify(lParam uintptr) uintptr {
+	if lParam == 0 { return 0 }
+	h := (*NMHDR)(unsafe.Pointer(lParam))
+	if h == nil || currentTable == nil || h.HwndFrom != currentTable.hwnd { return 0 }
+	n := (*NMLISTVIEW)(unsafe.Pointer(lParam)); code := int32(h.Code)
+	if code == int32(LVN_COLUMNCLICK) { sortTable(int(n.ISubItem)); return 0 }
+	if code == NM_DBLCLK { handleDoubleClick(n); return 0 }
+	return 0
+}
+
+func handleDoubleClick(n *NMLISTVIEW) {
+	row, ok := selectedRow(); if !ok { return }
+	if currentPage == ID_NAV_PICK && n != nil && int(n.ISubItem) >= 0 && int(n.ISubItem) < len(currentTable.data.Headers) && strings.Contains(strings.ToLower(currentTable.data.Headers[n.ISubItem]), "bỏ qua kiểm tra 20") {
+		user := ""
+		for i, h := range currentTable.data.Headers { if strings.EqualFold(strings.TrimSpace(h), "User") && i < len(row) { user = strings.TrimSpace(fmt.Sprint(row[i])); break } }
+		if user != "" {
+			if settings.Business.Skip20 == nil { settings.Business.Skip20 = map[string]bool{} }
+			settings.Business.Skip20[user] = !settings.Business.Skip20[user]
+			saveSettings(); recalculate()
+			logEvent("INFO", "PICK_SKIP20_DBLCLICK", "user_hash", shortHash(user), "enabled", strconv.FormatBool(settings.Business.Skip20[user]))
+			setStatus("Đã đổi kiểm tra 20 phút"); pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0); return
+		}
+	}
+	var b strings.Builder
+	for i, h := range currentTable.data.Headers { if i < len(row) { fmt.Fprintf(&b, "%s: %s\r\n", h, formatCell(row[i], currentTable.kinds[i])) } }
+	pMessageBox.Call(mainWnd, uintptr(unsafe.Pointer(ptr(b.String()))), uintptr(unsafe.Pointer(ptr("Chi tiết"))), MB_OK|MB_ICONINFORMATION)
+	logEvent("INFO", "DETAIL_OPEN", "page", strconv.Itoa(currentPage))
+}
+
+func handleCommand(id, code int, source uintptr) {
+	if id >= ID_NAV_OVERVIEW && id <= ID_NAV_SETTINGS { renderPage(id); return }
+	switch id {
+	case ID_SYNC: startSync()
+	case ID_UPDATE: go checkUpdateInteractive()
+	case ID_CURL_IMPORT: importCurl()
+	case ID_SECRET_TOGGLE:
+		revealSecrets = !revealSecrets; setText(settingsSummary, credentialSummary()); logEvent("INFO", "SECRET_DISPLAY_TOGGLE", "visible", strconv.FormatBool(revealSecrets))
+	case ID_NET_TEST: go networkTest()
+	case ID_LOG_OPEN: openFolder(logDir())
+	case ID_LOG_EXPORT: exportDiagnostic()
+	case ID_ACTIVE_STATUS:
+		if code == 1 { settings.Business.ActiveStatus = comboText(activeCombo); saveSettings(); renderPage(ID_NAV_ACTIVE) }
+	case ID_PICK_SHIFT:
+		if code == 1 { settings.Business.PickShift = comboText(pickShiftCombo); saveSettings(); recalculate(); renderPage(ID_NAV_PICK) }
+	case ID_PACK_SHIFT:
+		if code == 1 { settings.Business.PackShift = comboText(packShiftCombo); saveSettings(); recalculate(); renderPage(ID_NAV_PACK) }
+	case ID_PICK_DEDUCT:
+		settings.Business.PickDeductSKU = checked(source); saveSettings(); recalculate(); renderPage(ID_NAV_PICK)
+	case ID_PICK_REQUIRE:
+		settings.Business.PickRequireEven = checked(source); saveSettings(); recalculate(); renderPage(ID_NAV_PICK)
+	case ID_PICK_ALLSITE:
+		settings.Business.ShowAllSite = checked(source); saveSettings(); recalculate(); renderPage(ID_NAV_PICK)
+	case ID_PICK_1C1L:
+		settings.Business.Enable1C1L = checked(source); saveSettings(); recalculate(); renderPage(ID_NAV_PICK)
+	case ID_PICK_INCOMPLETE:
+		settings.Business.ShowIncompleteEven = checked(source); saveSettings(); recalculate(); renderPage(ID_NAV_PICK)
+	case ID_PICK_1C1LERR:
+		settings.Business.Show1C1LErrors = checked(source); saveSettings(); recalculate(); renderPage(ID_NAV_PICK)
+	case ID_SHIFT_MANUAL:
+		if code == 1 { applyManualShift() }
+	}
+}
+
+func recalculate() {
+	liveMu.Lock(); defer liveMu.Unlock()
+	if len(live.Payroll) == 0 { return }
+	p, pa, sh := core.BuildTables(live.Payroll, settings.Business, time.Now())
