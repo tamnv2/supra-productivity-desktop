@@ -406,3 +406,126 @@ func formatCell(v any, k colKind) string {
 	}
 	return fmt.Sprint(v)
 }
+
+func compare(a, b any, k colKind) int {
+	switch k {
+	case kindNumber, kindPercent:
+		af, _ := core.ToFloat(a); bf, _ := core.ToFloat(b)
+		if af < bf { return -1 }; if af > bf { return 1 }; return 0
+	case kindTenure:
+		ad := core.ParseTenureDays(fmt.Sprint(a)); bd := core.ParseTenureDays(fmt.Sprint(b))
+		if ad < bd { return -1 }; if ad > bd { return 1 }; return 0
+	case kindDate:
+		at, _ := a.(time.Time); bt, _ := b.(time.Time)
+		if at.Before(bt) { return -1 }; if at.After(bt) { return 1 }; return 0
+	}
+	return strings.Compare(strings.ToLower(fmt.Sprint(a)), strings.ToLower(fmt.Sprint(b)))
+}
+func renderTable(t core.Table, top int) {
+	var rc RECT
+	pGetClientRect.Call(mainWnd, uintptr(unsafe.Pointer(&rc)))
+	w := int(rc.Right) - 164; h := int(rc.Bottom) - top - 34
+	if w < 600 { w = 600 }; if h < 260 { h = 260 }
+	lv := create("SysListView32", "", WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SHOWSELALWAYS|WS_HSCROLL|WS_VSCROLL, 152, top, w, h, mainWnd, 0)
+	setFont(lv, fontNormal)
+	pSendMessage.Call(lv, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER)
+	addPage(lv)
+	kinds := make([]colKind, len(t.Headers))
+	for i, h := range t.Headers {
+		kinds[i] = inferKind(h)
+		width := 115
+		if strings.Contains(strings.ToLower(h), "họ") || strings.Contains(strings.ToLower(h), "thời gian") { width = 180 }
+		addListColumn(lv, i, h, width)
+	}
+	currentTable = &tableModel{hwnd: lv, data: t, kinds: kinds, sortCol: -1, asc: true}
+	tableWnd = lv
+	fillTable()
+}
+func fillTable() {
+	if currentTable == nil { return }
+	pSendMessage.Call(currentTable.hwnd, LVM_DELETEALLITEMS, 0, 0)
+	for r, row := range currentTable.data.Rows {
+		vals := make([]string, len(currentTable.data.Headers))
+		for i := range vals { if i < len(row) { vals[i] = formatCell(row[i], currentTable.kinds[i]) } }
+		addListRow(currentTable.hwnd, r, vals)
+	}
+}
+func sortTable(col int) {
+	if currentTable == nil || col < 0 || col >= len(currentTable.data.Headers) { return }
+	if currentTable.sortCol == col { currentTable.asc = !currentTable.asc } else { currentTable.sortCol = col; currentTable.asc = true }
+	k := currentTable.kinds[col]; asc := currentTable.asc
+	sort.SliceStable(currentTable.data.Rows, func(i, j int) bool {
+		var a, b any
+		if col < len(currentTable.data.Rows[i]) { a = currentTable.data.Rows[i][col] }
+		if col < len(currentTable.data.Rows[j]) { b = currentTable.data.Rows[j][col] }
+		c := compare(a, b, k)
+		if asc { return c < 0 }; return c > 0
+	})
+	fillTable()
+	logEvent("INFO", "TABLE_SORT", "column", currentTable.data.Headers[col], "ascending", strconv.FormatBool(asc))
+}
+func selectedRow() ([]any, bool) {
+	if currentTable == nil { return nil, false }
+	r, _, _ := pSendMessage.Call(currentTable.hwnd, LVM_GETNEXTITEM, ^uintptr(0), LVNI_SELECTED)
+	if int32(r) < 0 || int(r) >= len(currentTable.data.Rows) { return nil, false }
+	return currentTable.data.Rows[int(r)], true
+}
+
+func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
+	switch msg {
+	case WM_CREATE:
+		mainWnd = hwnd; createShell(); loadSettings(); loadCredentials()
+		logEvent("INFO", "APP_START", "version", appVersion)
+		renderPage(currentPage); pSetTimer.Call(hwnd, TIMER_METRICS, 2000, 0); go checkUpdateQuiet(); return 0
+	case WM_SIZE:
+		layout(); return 0
+	case WM_COMMAND:
+		id := int(uint16(wParam & 0xffff)); code := int(uint16((wParam >> 16) & 0xffff))
+		handleCommand(id, code, lParam); return 0
+	case WM_NOTIFY:
+		return handleNotify(lParam)
+	case WM_TIMER:
+		if wParam == TIMER_METRICS { if currentPage == ID_NAV_OVERVIEW { renderOverviewMetrics() }; return 0 }
+	case WM_APP_STATUS:
+		statusMu.Lock(); s := pendingStatus; statusMu.Unlock(); setText(statusText, s); return 0
+	case WM_APP_REFRESH:
+		renderPage(currentPage); return 0
+	case WM_DESTROY:
+		pKillTimer.Call(hwnd, TIMER_METRICS); logEvent("INFO", "APP_EXIT"); pPostQuit.Call(0); return 0
+	}
+	r, _, _ := pDefWindowProc.Call(hwnd, uintptr(msg), wParam, lParam); return r
+}
+
+func createShell() {
+	fontNormal, _, _ = pCreateFont.Call(18, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI"))))
+	fontSmall, _, _ = pCreateFont.Call(16, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI"))))
+	fontBold, _, _ = pCreateFont.Call(20, 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI Semibold"))))
+	headerText = create("STATIC", appName+"  ·  "+appVersion, WS_CHILD|WS_VISIBLE|SS_LEFT, 152, 10, 700, 30, mainWnd, 0); setFont(headerText, fontBold)
+	statusText = create("STATIC", "Sẵn sàng", WS_CHILD|WS_VISIBLE|SS_LEFT, 760, 14, 550, 24, mainWnd, 0); setFont(statusText, fontSmall)
+	buttonShell := func(id int, text string, y int) { b := create("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 10, y, 130, 34, mainWnd, uintptr(id)); setFont(b, fontSmall); nav[id] = b }
+	for i, item := range []struct{id int; name string}{{ID_NAV_OVERVIEW,"TỔNG QUAN"},{ID_NAV_ACTIVE,"ĐANG LẤY HÀNG"},{ID_NAV_PICK,"PICK"},{ID_NAV_PACK,"PACK"},{ID_NAV_SHIFT,"PHÂN CA"},{ID_NAV_USERPDA,"USER / PDA"},{ID_NAV_LOG,"NHẬT KÝ"},{ID_NAV_SETTINGS,"THIẾT LẬP"}} { buttonShell(item.id, item.name, 58+i*42) }
+	b := create("BUTTON", "ĐỒNG BỘ", WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, 1340, 10, 100, 32, mainWnd, ID_SYNC); setFont(b, fontSmall)
+	u := create("BUTTON", "CẬP NHẬT", WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, 1230, 10, 100, 32, mainWnd, ID_UPDATE); setFont(u, fontSmall)
+}
+func layout() {
+	var rc RECT; pGetClientRect.Call(mainWnd, uintptr(unsafe.Pointer(&rc)))
+	w, h := int(rc.Right), int(rc.Bottom)
+	move(headerText, 152, 10, w-620, 30); move(statusText, w-690, 14, 430, 24)
+	if tableWnd != 0 { top := 145; if currentPage == ID_NAV_PICK { top = 205 }; move(tableWnd, 152, top, w-164, h-top-34) }
+	if logEdit != 0 { move(logEdit, 152, 145, w-164, h-180) }
+}
+func pageTitle(title, sub string) { static(title, 152, 52, 500, 28, true); static(sub, 152, 80, 1000, 24, false) }
+func renderPage(id int) {
+	currentPage = id; destroyPage()
+	switch id {
+	case ID_NAV_OVERVIEW: renderOverview()
+	case ID_NAV_ACTIVE: renderActive()
+	case ID_NAV_PICK: renderPick()
+	case ID_NAV_PACK: renderPack()
+	case ID_NAV_SHIFT: renderShift()
+	case ID_NAV_USERPDA: renderUserPDA()
+	case ID_NAV_LOG: renderLog()
+	case ID_NAV_SETTINGS: renderSettings()
+	}
+	layout(); logEvent("INFO", "UI_PAGE", "page", strconv.Itoa(id))
+}
