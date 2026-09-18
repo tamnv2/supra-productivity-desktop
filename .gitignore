@@ -1,0 +1,55 @@
+# Secrets / local credentials
+.env
+.env.*
+secrets/
+private/
+*.token
+*.secret
+*.pem
+*.pfx
+*.p12
+*.key
+credentials*.json
+settings.local.*
+config.local.*
+
+# Runtime data
+data/
+cache/
+logs/
+diagnostics/
+backup/
+*.log
+*.dmp
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+SUPRA_DIAGNOSTIC_*
+AI_PC_DIAGNOSTIC_*
+
+# Operational spreadsheets are private by default
+*.xlsm
+*.xlsx
+*.xls
+!samples/public/*.xlsx
+
+# Build output
+bin/
+dist/
+build/
+out/
+tmp/
+*.exe
+*.msi
+
+# Go
+/vendor/
+
+# IDE / OS
+.vscode/
+.idea/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
