@@ -4,25 +4,40 @@ Updated: 2026-09-19
 
 ## Open / verification required
 
-### V1.3 PICK flicker/event storm
-- Earlier diagnostic showed a very large number of repeated skip-20-minute checkbox events, causing repeated recalculation/rendering.
-- V1.3 changed this interaction to remove the checkbox event-loop mechanism.
-- **Status:** implemented, owner verification still required on the target company laptop.
+### Public source is a sanitized reconstruction
+- The earlier private V1.3 test source is not treated as a public canonical source.
+- A sanitized Go/Win32 source tree has now been reconstructed and committed.
+- It intentionally excludes internal endpoint bindings, real company snapshots, credentials, and raw diagnostics.
+- **Status:** local core tests/cross-build passed; owner validation of the GitHub-built artifact is still required.
 
-### Excel parity
-- Live Pick/Pack/shift behavior is being ported from the Excel reference.
-- **Status:** partial/ongoing verification; do not claim 100% parity until owner tests approve it.
+### Private live-data bindings
+- Public source can import/protect the cURL session but intentionally does not publish all production Active-Picking and Payroll/Productivity endpoint templates.
+- **Status:** local encrypted runtime-profile provisioning is the next implementation step.
 
-### GitHub build/release
-- Repository has continuity/security scaffolding but current application source has not yet been imported.
-- **Status:** blocked until sanitized V1.3 source is committed.
+### GitHub Actions verification
+- Windows build/release workflows are committed.
+- Connector-created commits/PR events did not expose a workflow run for verification in this session.
+- **Status:** trigger through a normal external push or manual Actions dispatch and verify artifact/logs.
 
 ### GitHub updater
-- Required direction: GitHub Releases when reachable, but Office network may block GitHub.
-- Must have manual/offline update fallback.
-- **Status:** planned, not implemented.
+- Current public source checks the latest stable release and can open the Release page.
+- Automatic staged install, SHA256 verification, rollback, and manual/offline package install remain incomplete.
+- **Status:** open.
 
-## Resolved/superseded
+### UI / functional parity
+- Full process/system CPU telemetry still needs parity work.
+- All PICK numeric target/quota fields are not yet exposed as editable controls in the reconstructed public UI.
+- User/PDA public build contains no bundled company snapshot by design; live/local binding is pending.
+- **Status:** open.
 
-- V1.1 sync button did not fully update operational live tables → superseded by later implementation.
-- V1.2 PICK rendering/event behavior → superseded by V1.3 change; verification pending.
+### V1.3 PICK flicker/event storm
+- Earlier diagnostics showed a large repeated skip-20-minute checkbox event storm.
+- V1.3 changed the interaction to avoid the recursive render mechanism.
+- **Status:** implementation exists; target-laptop owner verification required.
+
+## Resolved / superseded
+
+- V1.1 incomplete live-sync behavior → superseded.
+- V1.2 PICK recursive checkbox/render mechanism → superseded by the V1.3 interaction change, pending verification.
+- GitHub continuity/source-state bootstrap → complete.
+- Public source import blocker → resolved; source is now in the repository.
