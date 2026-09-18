@@ -4,23 +4,23 @@ Updated: 2026-09-19
 
 ## Immediate next action
 
-**Import the canonical V1.3 source into this repository after a public-repo security scrub.**
+**Provision private live-data bindings locally without publishing them, then validate the GitHub-built executable.**
 
-Then, in order:
+Order:
 
-1. Add a Windows x64 GitHub Actions build that reproduces the portable EXE.
-2. Add tagged GitHub Release packaging: EXE + ZIP + SHA256 + changelog.
-3. Add application update logic using GitHub Releases when reachable, with a manual/offline fallback for restricted Office network.
-4. Continue owner testing of V1.3 on PDA and Office.
-5. Convert each received diagnostic into a **sanitized issue summary**, never commit raw diagnostic ZIPs.
-6. Fix only verified issues and update `ops/project-state.json`, `docs/KNOWN_ISSUES.md`, and `CHANGELOG.md`.
+1. Implement the encrypted local runtime-profile import described in `docs/RUNTIME_PROFILE.md`.
+2. Bind the sanitized public app to the locally provisioned Active-Picking and Payroll/Productivity request templates.
+3. Complete GitHub updater installation: SHA256 validation, staged replacement, backup/rollback, and manual/offline package fallback.
+4. Trigger the GitHub Actions Windows x64 build from an external/manual workflow event and verify the produced artifact.
+5. Owner tests the GitHub-built EXE on PDA and restricted Office network.
+6. Analyze diagnostics privately; commit only sanitized findings.
+7. Update `ops/project-state.json`, `docs/KNOWN_ISSUES.md`, and `CHANGELOG.md` after each verified result.
 
-## Acceptance focus for V1.3
+## Current acceptance focus
 
-- PICK no longer flickers/blanks or creates an event storm.
-- UI remains responsive during sync.
-- Manual shift can be selected and persisted.
-- Double-click details match the intended Excel workflow.
-- Active-picking status filter applies immediately.
-- Logs contain enough technical detail for diagnosis without credentials.
-- CPU/RAM behavior remains stable during extended use.
+- Public repository contains no production credentials/private endpoint URLs/raw operational data.
+- GitHub can reproducibly build the portable Windows x64 executable.
+- Core app remains usable if GitHub/public Internet is blocked.
+- Local runtime profile restores full live-data capability without exposing internal infrastructure.
+- PICK remains free of the prior recursive event/flicker behavior.
+- Owner acceptance is required before any build is called stable.
