@@ -28,12 +28,10 @@ Canonical trigger:
 The workflow rebuilds from canonical source, reruns guards/tests/vet/binary scan and publishes a GitHub **prerelease**.
 
 Current candidate:
-- `v1.3.1-test.2`
-- publish run `35416300861` — PASS.
-- Windows portable build run `35416300869` — PASS.
-- Project State Guard run `35416300901` — PASS.
+- `v1.3.2-test.1` — recovered V1.3 rebaseline candidate.
+- After test.1 is published, `v1.3.2-test.2` will be published from identical source as the in-app updater verification target.
 
-Previous `v1.3.1-test.1` was owner-rejected after runtime testing and must not be promoted.
+Previous `v1.3.1-test.1` and `v1.3.1-test.2` are superseded for business-behavior baseline purposes by the owner-provided recovered V1.3 source.
 
 Prereleases are for owner testing and are not treated as accepted stable builds.
 
@@ -53,15 +51,18 @@ The older tag/manual `.github/workflows/release.yml` remains available as an alt
 
 ## In-app updater
 
-Stable update path:
-1. query latest stable GitHub Release;
-2. compare version;
-3. download `SupraProductivity.exe` and `SHA256SUMS.txt`;
-4. verify SHA256;
-5. save current executable as backup;
-6. stage replacement after app exit;
-7. restart;
-8. restore backup if replacement itself fails.
+Update path:
+1. stable builds query the latest stable GitHub Release;
+2. test builds query recent GitHub Releases and select a newer test/stable version only;
+3. compare semantic/test version to prevent downgrade;
+4. download `SupraProductivity.exe` and `SHA256SUMS.txt`;
+5. verify SHA256;
+6. save current executable as backup;
+7. stage replacement after app exit;
+8. restart;
+9. restore backup if replacement itself fails.
+
+The rebaseline is verified with a real `v1.3.2-test.1` → `v1.3.2-test.2` update pair.
 
 GitHub/public Internet being unavailable is non-fatal; core internal operations continue.
 
