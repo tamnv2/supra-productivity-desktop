@@ -738,33 +738,253 @@ func applyManualShift() {
 	renderPage(ID_NAV_SHIFT)
 }
 
+type liveSyncResult struct {
+	name    string
+	payroll []core.PayrollRow
+	table   core.Table
+	meta    liveio.HTTPMeta
+	route   string
+	err     error
+}
+
+type clientCandidate struct {
+	name   string
+	client *http.Client
+}
+
+func sessionReady() bool {
+	return creds.Authorization != "" || creds.Token != "" || creds.APISID != "" ||
+		creds.USID != "" || creds.Signature != ""
+}
+
+func currentLiveSession() liveio.Session {
+	return liveio.Session{
+		Authorization: creds.Authorization,
+		Token: creds.Token,
+		APISID: creds.APISID,
+		USID: creds.USID,
+		Signature: creds.Signature,
+		Nonce: creds.Nonce,
+		UserAgent: creds.UserAgent,
+		Headers: creds.OtherHeaders,
+	}
+}
+
+func profileBinding(name string) (liveio.Binding, bool) {
+	for k, b := range profile.Bindings {
+		if strings.EqualFold(strings.TrimSpace(k), strings.TrimSpace(name)) {
+			return b, true
+		}
+	}
+	return liveio.Binding{}, false
+}
+
+func windowsUserProxy() *url.URL {
+	out, err := exec.Command("reg.exe", "query", `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`, "/v", "ProxyEnable").CombinedOutput()
+	if err != nil || !strings.Contains(strings.ToLower(string(out)), "0x1") {
+		return nil
+	}
+	out, err = exec.Command("reg.exe", "query", `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`, "/v", "ProxyServer").CombinedOutput()
+	if err != nil {
+		return nil
+	}
+	text := strings.TrimSpace(string(out))
+	lines := strings.Split(text, "\n")
+	value := ""
+	for _, line := range lines {
+		if !strings.Contains(strings.ToLower(line), "proxyserver") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) > 0 {
+			value = fields[len(fields)-1]
+		}
+	}
+	if value == "" {
+		return nil
+	}
+	if strings.Contains(value, ";") {
+		parts := strings.Split(value, ";")
+		value = ""
+		for _, p := range parts {
+			kv := strings.SplitN(strings.TrimSpace(p), "=", 2)
+			if len(kv) == 2 && strings.EqualFold(kv[0], "https") {
+				value = kv[1]
+				break
+			}
+		}
+		if value == "" {
+			for _, p := range parts {
+				kv := strings.SplitN(strings.TrimSpace(p), "=", 2)
+				if len(kv) == 2 && strings.EqualFold(kv[0], "http") {
+					value = kv[1]
+					break
+				}
+			}
+		}
+	}
+	if value == "" {
+		return nil
+	}
+	if !strings.Contains(value, "://") {
+		value = "http://" + value
+	}
+	u, err := url.Parse(value)
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	return u
+}
+
+func liveClients() []clientCandidate {
+	out := []clientCandidate{}
+	if p := windowsUserProxy(); p != nil {
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		tr.Proxy = http.ProxyURL(p)
+		out = append(out, clientCandidate{name: "windows-user-proxy", client: &http.Client{Transport: tr, Timeout: 45 * time.Second}})
+	}
+	envTr := http.DefaultTransport.(*http.Transport).Clone()
+	out = append(out, clientCandidate{name: "system-auto", client: &http.Client{Transport: envTr, Timeout: 45 * time.Second}})
+	directTr := http.DefaultTransport.(*http.Transport).Clone()
+	directTr.Proxy = nil
+	out = append(out, clientCandidate{name: "direct", client: &http.Client{Transport: directTr, Timeout: 45 * time.Second}})
+	return out
+}
+
+func executeWithFallback(ctx context.Context, b liveio.Binding, s liveio.Session) ([]byte, liveio.HTTPMeta, string, error) {
+	var last error
+	var lastMeta liveio.HTTPMeta
+	for _, candidate := range liveClients() {
+		data, meta, err := liveio.Execute(ctx, candidate.client, b, s)
+		if err == nil {
+			return data, meta, candidate.name, nil
+		}
+		last, lastMeta = err, meta
+		if meta.StatusCode == http.StatusUnauthorized || meta.StatusCode == http.StatusForbidden {
+			break
+		}
+	}
+	if last == nil {
+		last = fmt.Errorf("no network route")
+	}
+	return nil, lastMeta, "", last
+}
+
+func syncOne(ctx context.Context, name string, b liveio.Binding, s liveio.Session, ch chan<- liveSyncResult) {
+	b = liveio.ExpandBinding(b, time.Now())
+	data, meta, route, err := executeWithFallback(ctx, b, s)
+	if err != nil {
+		ch <- liveSyncResult{name: name, meta: meta, route: route, err: err}
+		return
+	}
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "payroll-productivity":
+		rows, e := liveio.ParsePayrollXLSX(data, b)
+		ch <- liveSyncResult{name: name, payroll: rows, meta: meta, route: route, err: e}
+	case "active-picking":
+		table, e := liveio.ParseActiveJSON(data, b)
+		ch <- liveSyncResult{name: name, table: table, meta: meta, route: route, err: e}
+	default:
+		ch <- liveSyncResult{name: name, meta: meta, route: route, err: fmt.Errorf("unsupported live binding")}
+	}
+}
+
 func startSync() {
 	if !busy.CompareAndSwap(false, true) {
 		setStatus("Đang đồng bộ; không tạo thêm tác vụ chồng nhau.")
 		return
 	}
-	setStatus("Đang đồng bộ…")
+	setStatus("Đang đồng bộ live…")
 	logEvent("INFO", "SYNC_START")
 	go func() {
 		defer busy.Store(false)
-		defer pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0) // Public source intentionally externalizes private operational endpoints.
-		if creds.URL == "" {
+		defer pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0)
+		if !sessionReady() {
 			setStatus("Chưa có phiên Dashboard. Vào Thiết lập → dán cURL bash.")
 			logEvent("WARN", "SYNC_NO_CREDENTIAL")
 			return
 		}
-		if err := requestProbe(creds); err != nil {
-			setStatus("Kết nối phiên lỗi; giữ dữ liệu cũ.")
-			logEvent("ERROR", "SYNC_PROBE_FAILED", "error", err.Error())
-			return
-		}
 		if len(profile.Bindings) == 0 {
-			setStatus("Phiên hợp lệ; chưa có runtime profile live cục bộ.")
+			setStatus("Chưa có runtime profile live cục bộ.")
 			logEvent("WARN", "SYNC_PROFILE_MISSING")
 			return
 		}
-		setStatus(fmt.Sprintf("Phiên hợp lệ · runtime profile %s · %d binding(s).", profile.ProfileID, len(profile.Bindings)))
-		logEvent("INFO", "SYNC_SESSION_OK", "profile_id", sanitizeProfileID(profile.ProfileID), "binding_count", strconv.Itoa(len(profile.Bindings)))
+		payBinding, payOK := profileBinding("payroll-productivity")
+		activeBinding, activeOK := profileBinding("active-picking")
+		if !payOK && !activeOK {
+			setStatus("Runtime profile chưa có binding payroll-productivity / active-picking.")
+			logEvent("ERROR", "SYNC_BINDINGS_MISSING")
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
+		defer cancel()
+		ch := make(chan liveSyncResult, 2)
+		session := currentLiveSession()
+		pending := 0
+		if payOK {
+			pending++
+			go syncOne(ctx, "payroll-productivity", payBinding, session, ch)
+		}
+		if activeOK {
+			pending++
+			go syncOne(ctx, "active-picking", activeBinding, session, ch)
+		}
+		success := 0
+		var errors []string
+		var payroll []core.PayrollRow
+		var active core.Table
+		route := ""
+		for i := 0; i < pending; i++ {
+			r := <-ch
+			if r.err != nil {
+				errors = append(errors, r.name+": "+r.err.Error())
+				logEvent("ERROR", "SYNC_BINDING_FAILED",
+					"binding", r.name,
+					"http_status", strconv.Itoa(r.meta.StatusCode),
+					"elapsed_ms", strconv.FormatInt(r.meta.Elapsed.Milliseconds(), 10),
+					"error", r.err.Error())
+				continue
+			}
+			success++
+			if route == "" { route = r.route }
+			logEvent("INFO", "SYNC_BINDING_OK",
+				"binding", r.name,
+				"http_status", strconv.Itoa(r.meta.StatusCode),
+				"bytes", strconv.Itoa(r.meta.Bytes),
+				"elapsed_ms", strconv.FormatInt(r.meta.Elapsed.Milliseconds(), 10),
+				"route", r.route)
+			if r.name == "payroll-productivity" { payroll = r.payroll }
+			if r.name == "active-picking" { active = r.table }
+		}
+		if success == 0 {
+			liveMu.Lock()
+			live.LastError = strings.Join(errors, " | ")
+			liveMu.Unlock()
+			setStatus("Đồng bộ live lỗi; giữ nguyên dữ liệu hợp lệ trước đó.")
+			return
+		}
+		liveMu.Lock()
+		if len(payroll) > 0 {
+			p, pa, sh := core.BuildTables(payroll, settings.Business, time.Now())
+			live.Payroll = payroll
+			live.Pick, live.Pack, live.Shift = p, pa, sh
+			live.UserPDA = liveio.BuildPeopleTable(payroll)
+		}
+		if len(active.Headers) > 0 {
+			live.Active = active
+		}
+		live.LastSync = time.Now()
+		live.LastError = strings.Join(errors, " | ")
+		live.Route = route
+		pickN, packN, activeN := len(live.Pick.Rows), len(live.Pack.Rows), len(live.Active.Rows)
+		liveMu.Unlock()
+		setStatus(fmt.Sprintf("Đồng bộ LIVE xong · Pick %d · Pack %d · Đang lấy %d", pickN, packN, activeN))
+		logEvent("INFO", "SYNC_DONE",
+			"success_bindings", strconv.Itoa(success),
+			"failed_bindings", strconv.Itoa(len(errors)),
+			"pick_rows", strconv.Itoa(pickN),
+			"pack_rows", strconv.Itoa(packN),
+			"active_rows", strconv.Itoa(activeN))
 	}()
 }
 
