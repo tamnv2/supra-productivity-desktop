@@ -1351,22 +1351,30 @@ func startSync() {
 		setStatus("Đang đồng bộ; không tạo thêm tác vụ chồng nhau.")
 		return
 	}
-	setStatus("Đang đồng bộ dữ liệu…")
+	setStatus("Đang đồng bộ Dashboard…")
 	logEvent("INFO", "SYNC_START")
 	go func() {
 		defer busy.Store(false)
 		defer pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0)
+
 		if !sessionReady() {
-			setStatus("Chưa có phiên Dashboard. Vào Thiết lập để nhận cấu hình nguồn.")
+			setStatus("Chưa có phiên Dashboard. Vào Thiết lập và dán cURL một lần.")
 			logEvent("WARN", "SYNC_NO_CREDENTIAL")
 			return
 		}
-
-		payBinding, payOK := profileBinding("payroll-productivity")
 		activeBinding, activeOK := profileBinding("active-picking")
-		if !payOK && !activeOK {
-			setStatus("Chưa thiết lập nguồn dữ liệu. Vào Thiết lập → chọn nguồn → dán cURL.")
-			logEvent("WARN", "SYNC_SOURCES_MISSING")
+		payBinding, payOK := profileBinding("payroll-productivity")
+		if !activeOK || !payOK {
+			if err := ensureDashboardBindings(); err != nil {
+				setStatus("Chưa thiết lập Dashboard: " + err.Error())
+				logEvent("WARN", "SYNC_DASHBOARD_CONFIG_MISSING", "error", err.Error())
+				return
+			}
+			activeBinding, activeOK = profileBinding("active-picking")
+			payBinding, payOK = profileBinding("payroll-productivity")
+		}
+		if !activeOK || !payOK {
+			setStatus("Cấu hình Dashboard chưa đầy đủ.")
 			return
 		}
 
@@ -1374,87 +1382,100 @@ func startSync() {
 		defer cancel()
 		ch := make(chan liveSyncResult, 2)
 		session := currentLiveSession()
-		pending := 0
-		missing := []string{}
-		if payOK {
-			pending++
-			go syncOne(ctx, "payroll-productivity", payBinding, session, ch)
-		} else { missing = append(missing, "Sản lượng") }
-		if activeOK {
-			pending++
-			go syncOne(ctx, "active-picking", activeBinding, session, ch)
-		} else { missing = append(missing, "Đang lấy hàng") }
+		go syncOne(ctx, "active-picking", activeBinding, session, ch)
+		go syncOne(ctx, "payroll-productivity", payBinding, session, ch)
 
-		success := 0
-		var errors []string
 		var payroll []core.PayrollRow
 		var active core.Table
+		var problems []string
+		success := 0
 		route := ""
-		for i := 0; i < pending; i++ {
+		for i := 0; i < 2; i++ {
 			r := <-ch
 			if r.err != nil {
-				errors = append(errors, sourceLabel(r.name)+": "+r.err.Error())
+				problems = append(problems, sourceLabel(r.name)+": "+r.err.Error())
 				logEvent("ERROR", "SYNC_SOURCE_FAILED",
 					"source", r.name,
 					"http_status", strconv.Itoa(r.meta.StatusCode),
+					"bytes", strconv.Itoa(r.meta.Bytes),
 					"elapsed_ms", strconv.FormatInt(r.meta.Elapsed.Milliseconds(), 10),
 					"error", r.err.Error())
 				continue
 			}
 			success++
 			if route == "" { route = r.route }
+			if r.name == "payroll-productivity" { payroll = r.payroll }
+			if r.name == "active-picking" { active = r.table }
+			rows := len(r.payroll)
+			if r.name == "active-picking" { rows = len(r.table.Rows) }
 			logEvent("INFO", "SYNC_SOURCE_OK",
 				"source", r.name,
 				"http_status", strconv.Itoa(r.meta.StatusCode),
 				"bytes", strconv.Itoa(r.meta.Bytes),
+				"rows", strconv.Itoa(rows),
 				"elapsed_ms", strconv.FormatInt(r.meta.Elapsed.Milliseconds(), 10),
 				"route", r.route)
-			if r.name == "payroll-productivity" { payroll = r.payroll }
-			if r.name == "active-picking" { active = r.table }
 		}
+
 		if success == 0 {
 			liveMu.Lock()
-			live.LastError = strings.Join(errors, " | ")
+			live.LastError = strings.Join(problems, " | ")
 			liveMu.Unlock()
 			setStatus("Đồng bộ lỗi; dữ liệu hợp lệ trước đó vẫn được giữ nguyên.")
 			return
 		}
 
+		// Preserve the Excel behavior: production is processed through Mapping /
+		// Phân ca, while current-picking profile fields enrich missing employee data.
+		liveMu.RLock()
+		effectivePayroll := append([]core.PayrollRow(nil), live.Payroll...)
+		effectiveActive := live.Active
+		liveMu.RUnlock()
+		if len(active.Headers) > 0 { effectiveActive = active }
+		if len(payroll) > 0 {
+			effectivePayroll = liveio.EnrichPayrollFromActive(payroll, effectiveActive)
+		}
+
+		var pick, pack, shift core.Table
+		if len(payroll) > 0 {
+			pick, pack, shift = core.BuildTables(effectivePayroll, settings.Business, time.Now())
+		}
+		people := liveio.BuildPeopleTableCombined(effectivePayroll, effectiveActive)
+
 		liveMu.Lock()
 		if len(payroll) > 0 {
-			p, pa, sh := core.BuildTables(payroll, settings.Business, time.Now())
-			live.Payroll = payroll
-			live.Pick, live.Pack, live.Shift = p, pa, sh
-			live.UserPDA = liveio.BuildPeopleTable(payroll)
+			live.Payroll = effectivePayroll
+			live.Pick, live.Pack, live.Shift = pick, pack, shift
 		}
 		if len(active.Headers) > 0 { live.Active = active }
+		if len(people.Headers) > 0 { live.UserPDA = people }
 		live.LastSync = time.Now()
-		allIssues := append([]string{}, errors...)
-		if len(missing) > 0 { allIssues = append(allIssues, "Chưa cấu hình: "+strings.Join(missing, ", ")) }
-		live.LastError = strings.Join(allIssues, " | ")
+		live.LastError = strings.Join(problems, " | ")
 		live.Route = route
-		pickN, packN, activeN := len(live.Pick.Rows), len(live.Pack.Rows), len(live.Active.Rows)
+		pickN := len(live.Pick.Rows)
+		packN := len(live.Pack.Rows)
+		shiftN := len(live.Shift.Rows)
+		activeN := len(live.Active.Rows)
+		peopleN := len(live.UserPDA.Rows)
+		payrollN := len(live.Payroll)
 		liveMu.Unlock()
 
-		if len(allIssues) > 0 {
-			setStatus(fmt.Sprintf("Đồng bộ một phần · Pick %d · Pack %d · Đang lấy %d · %s", pickN, packN, activeN, strings.Join(allIssues, " | ")))
+		if len(problems) > 0 {
+			setStatus(fmt.Sprintf("Đồng bộ một phần · User/PDA %d · Pick %d · Pack %d · Phân ca %d · Đang lấy %d", peopleN, pickN, packN, shiftN, activeN))
 		} else {
-			setStatus(fmt.Sprintf("Đồng bộ xong · Pick %d · Pack %d · Đang lấy %d", pickN, packN, activeN))
+			setStatus(fmt.Sprintf("Đồng bộ xong · User/PDA %d · Pick %d · Pack %d · Phân ca %d · Đang lấy %d", peopleN, pickN, packN, shiftN, activeN))
 		}
 		logEvent("INFO", "SYNC_DONE",
 			"success_sources", strconv.Itoa(success),
-			"failed_sources", strconv.Itoa(len(errors)),
-			"missing_sources", strconv.Itoa(len(missing)),
+			"failed_sources", strconv.Itoa(len(problems)),
+			"payroll_rows", strconv.Itoa(payrollN),
+			"user_pda_rows", strconv.Itoa(peopleN),
 			"pick_rows", strconv.Itoa(pickN),
 			"pack_rows", strconv.Itoa(packN),
+			"shift_rows", strconv.Itoa(shiftN),
 			"active_rows", strconv.Itoa(activeN))
 	}()
 }
-
-var reHeader = regexp.MustCompile(`(?is)-H\s+(?:'([^']*)'|"([^"]*)")`)
-var reURL = regexp.MustCompile(`(?is)(?:--url\s+)?(?:'(https?://[^']+)'|"(https?://[^"]+)"|(https?://\S+))`)
-var reMethod = regexp.MustCompile(`(?i)(?:-X|--request)\s+['"]?([A-Z]+)`)
-var reBody = regexp.MustCompile(`(?is)(?:--data-raw|--data-binary|--data)\s+(?:'([^']*)'|"([^"]*)")`)
 
 func parseCurl(raw string) (credentials, error) {
 	raw = strings.TrimSpace(raw)
