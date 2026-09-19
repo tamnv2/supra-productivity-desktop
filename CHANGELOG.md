@@ -62,3 +62,12 @@ Status: private test build; owner acceptance pending.
 - Window now opens full work-area and is non-resizable/minimize-only in normal use.
 - Refined shell styling to a restrained neutral palette with status-aware header text.
 
+## 2026-09-19 — Recovered V1.3 rebaseline
+
+- Replaced placeholder business defaults/calculations with values and formulas recovered from the stable V1.3 executable.
+- Restored V1.3 shift classification, per-DO SKU deduction, minute-based productivity calculation, site filtering, relative completion text and 1C1L calculation.
+- Restored the V1.3 payroll duration semantics and the 31-column active-picking table shape.
+- Rebased the desktop shell to the stable-style left-navigation implementation while retaining non-blocking diagnostics.
+- Kept private endpoint bindings outside the public repository through the local DPAPI runtime profile.
+- Extended the GitHub updater so test/prerelease builds can detect newer test releases; SHA256 verification, backup, staged replacement and restart remain mandatory.
+- Planned an actual updater verification pair: `v1.3.2-test.1` → `v1.3.2-test.2`.
