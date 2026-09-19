@@ -16,7 +16,7 @@ Verified PR build:
 - run `35412096189` — PASS.
 
 Verified main build for current candidate request:
-- run `35412269285` — PASS.
+- run `35416300869` — PASS.
 
 ## Owner-test prerelease
 
@@ -28,8 +28,12 @@ Canonical trigger:
 The workflow rebuilds from canonical source, reruns guards/tests/vet/binary scan and publishes a GitHub **prerelease**.
 
 Current candidate:
-- `v1.3.1-test.1`
-- publish run `35412269300` — PASS.
+- `v1.3.1-test.2`
+- publish run `35416300861` — PASS.
+- Windows portable build run `35416300869` — PASS.
+- Project State Guard run `35416300901` — PASS.
+
+Previous `v1.3.1-test.1` was owner-rejected after runtime testing and must not be promoted.
 
 Prereleases are for owner testing and are not treated as accepted stable builds.
 

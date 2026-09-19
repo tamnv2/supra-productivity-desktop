@@ -45,5 +45,6 @@ Updated: 2026-09-19
 - Verified source risk: log writes and directory preparation were synchronous on UI-driven paths and could inherit a slow/stale configured data path.
 - Fix in test.2: runtime log path is local AppData, log writes use a bounded non-blocking background queue, log viewing reads a bounded tail, and diagnostic export runs off the UI thread.
 - UI correction in test.2: fixed full-work-area window, no resize flow, bottom navigation, neutral professional palette/status-aware header, larger operational content area.
-- **Status:** code fixed; target-laptop verification pending.
+- Test.2 GitHub build/publish checks passed; prerelease is available.
+- **Status:** target-laptop verification of test.2 pending.
 

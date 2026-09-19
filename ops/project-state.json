@@ -6,8 +6,8 @@
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
   "current_version": "v1.3.1-test.2",
-  "current_phase": "ui-runtime-regression-fix",
-  "current_status": "owner_rejected_test1_fix_committed_candidate_test2_requested",
+  "current_phase": "owner-runtime-verification",
+  "current_status": "github_prerelease_test2_published_owner_retest_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -60,10 +60,13 @@
     "Moved primary navigation from left rail to bottom row to maximize business content area.",
     "Changed window shell to full work-area fixed size with minimize-only user flow.",
     "Changed runtime logging to non-blocking local AppData logging so diagnostics I/O cannot block the UI thread.",
-    "Refreshed neutral professional shell styling with dark header, light workspace, Windows Explorer-themed controls and status-aware header text."
+    "Refreshed neutral professional shell styling with dark header, light workspace, Windows Explorer-themed controls and status-aware header text.",
+    "Project State Guard passed for v1.3.1-test.2 request commit (run 35416300901).",
+    "Build Windows Portable passed for v1.3.1-test.2 request commit (run 35416300869).",
+    "Owner-test prerelease v1.3.1-test.2 published successfully (run 35416300861)."
   ],
-  "current_task": "Rebuild the GitHub candidate after owner rejected v1.3.1-test.1 for UI/runtime responsiveness.",
-  "next_action": "Verify GitHub Actions for v1.3.1-test.2. If PASS, owner retests full-size bottom-navigation UI, startup/navigation responsiveness, PDA sync and restricted Office sync.",
+  "current_task": "Owner retest v1.3.1-test.2 on the company laptop after the test.1 responsiveness/UI rejection.",
+  "next_action": "Download and retest v1.3.1-test.2. Verify no Not Responding during startup/navigation, full-size/minimize-only behavior, bottom navigation/content layout, PDA sync, restricted Office sync, and long-running CPU/RAM/log stability.",
   "blockers": [
     "Owner runtime retest of v1.3.1-test.2 is required before any stable release.",
     "Real target-laptop verification remains required for network and long-running CPU/RAM stability."
@@ -86,9 +89,9 @@
     "windows_x64_cross_build": "passed",
     "binary_public_scan": "passed",
     "v1.3.1-test.1": "owner_rejected_not_accepted",
-    "candidate_publish_workflow": "passed_run_35412269300",
-    "main_build_after_candidate_request": "passed_run_35412269285",
-    "v1.3.1-test.2": "candidate_requested_ci_pending"
+    "candidate_publish_workflow": "passed_run_35416300861",
+    "main_build_after_candidate_request": "passed_run_35416300869",
+    "v1.3.1-test.2": "github_prerelease_published_owner_test_pending"
   },
   "security": {
     "public_repo": true,
@@ -130,9 +133,9 @@
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
     "candidate_release": "v1.3.1-test.2",
-    "candidate_release_status": "requested_ci_pending",
-    "candidate_publish_run_id": 35412269300,
-    "main_build_run_id": 35412269285
+    "candidate_release_status": "published_prerelease",
+    "candidate_publish_run_id": 35416300861,
+    "main_build_run_id": 35416300869
   },
   "update_pipeline": {
     "latest_stable_release_check": "implemented",

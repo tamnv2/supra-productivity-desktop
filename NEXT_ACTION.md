@@ -2,39 +2,41 @@
 
 Updated: 2026-09-19
 
-## Current state
+## Verified state
 
-Owner **rejected `v1.3.1-test.1`** after real company-laptop testing:
-- Windows displayed `Not Responding`;
-- UI/layout was not accepted.
+`v1.3.1-test.1` is **owner-rejected** and must not be promoted.
 
-The rejected build must not be promoted stable.
+Replacement candidate **`v1.3.1-test.2`** is now published and all required GitHub checks passed:
 
-## Fix committed for next candidate
+- Project State Guard: run `35416300901` — PASS
+- Build Windows Portable: run `35416300869` — PASS
+- Publish Owner Test Candidate: run `35416300861` — PASS
+- release target commit: `59ebff41eafc90acf74c954315b49bf6b3f36521`
 
-Target: **`v1.3.1-test.2`**
+### test.2 changes
 
-Changes:
-1. runtime log writes no longer execute filesystem work synchronously on the UI path;
-2. runtime logs are kept in local AppData, independent from a stale/slow configured data folder;
-3. diagnostic export runs in a worker goroutine;
-4. log viewer reads only a bounded tail;
-5. navigation moved from the left rail to one bottom row;
-6. operational content now uses almost the full window width;
-7. app opens at the full Windows work area and is not resizable; user can minimize it to the taskbar;
-8. shell styling uses one restrained neutral palette with a dark header and status-aware text.
+- runtime logging removed from synchronous UI filesystem paths;
+- runtime logs use a bounded background queue in local AppData;
+- diagnostic export runs off the UI thread;
+- log viewer reads a bounded tail only;
+- business navigation moved to one bottom row;
+- operational content uses near-full window width;
+- app opens full Windows work-area and is not resizable; minimize-to-taskbar remains available;
+- shell styling is restrained and consistent, with a dark header and status-aware text.
 
 ## Immediate next action
 
-1. Verify GitHub Actions build and owner-test publish for `v1.3.1-test.2`.
-2. If both PASS, owner downloads and tests `v1.3.1-test.2`.
-3. Retest:
-   - startup and repeated navigation: no `Not Responding`;
-   - full-size/minimize-only behavior;
-   - bottom navigation and content area;
-   - Pick/Pack/Phân ca controls;
-   - PDA sync;
-   - restricted Office sync;
-   - long-running CPU/RAM/log stability.
+**Owner tests `v1.3.1-test.2` on the target company laptop.**
+
+Priority verification:
+1. open app and switch screens repeatedly — Windows must not show `Not Responding`;
+2. confirm full-size / minimize-only window behavior;
+3. confirm bottom navigation and usable content area;
+4. test Pick / Pack / Phân ca controls;
+5. sync on PDA network;
+6. sync on restricted Office network;
+7. leave running long enough to inspect CPU/RAM/log stability.
+
+If any item fails, send the private diagnostic and screenshot; record only sanitized findings in the public repository.
 
 Do not publish stable until explicit owner acceptance.
