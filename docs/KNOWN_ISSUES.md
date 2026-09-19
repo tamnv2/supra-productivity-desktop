@@ -48,3 +48,10 @@ Updated: 2026-09-19
 - Test.2 GitHub build/publish checks passed; prerelease is available.
 - **Status:** target-laptop verification of test.2 pending.
 
+### Recovered V1.3 rebaseline verification
+- The owner supplied a source reconstruction extracted from the stable V1.3 executable after the GitHub test builds diverged from stable behavior.
+- Placeholder defaults/calculations in the prior GitHub reconstruction were confirmed to differ from V1.3 and are being replaced.
+- Private endpoint/proxy literals found in the recovered binary are deliberately excluded from the public repository; runtime binding remains local/DPAPI-protected.
+- `v1.3.1-test.2` is superseded as the business-behavior baseline. Its non-blocking logging fix is retained.
+- **Status:** PR CI/build and owner runtime/updater verification pending.
+
