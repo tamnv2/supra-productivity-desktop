@@ -1192,11 +1192,17 @@ func setStatus(s string) {
 }
 
 // GitHub update check is non-fatal. It never blocks app startup or internal operations.
+type releaseAsset struct {
+	Name               string `json:"name"`
+	BrowserDownloadURL string `json:"browser_download_url"`
+	Size               int64  `json:"size"`
+}
 type releaseInfo struct {
-	TagName    string `json:"tag_name"`
-	HTMLURL    string `json:"html_url"`
-	Draft      bool   `json:"draft"`
-	Prerelease bool   `json:"prerelease"`
+	TagName    string         `json:"tag_name"`
+	HTMLURL    string         `json:"html_url"`
+	Draft      bool           `json:"draft"`
+	Prerelease bool           `json:"prerelease"`
+	Assets     []releaseAsset `json:"assets"`
 }
 
 func latestRelease() (releaseInfo, error) {
@@ -1227,6 +1233,130 @@ func checkUpdateQuiet() {
 		setStatus("Có bản cập nhật " + r.TagName + ". Bấm CẬP NHẬT để mở Release.")
 	}
 }
+func assetByName(r releaseInfo, name string) (releaseAsset, bool) {
+	for _, a := range r.Assets {
+		if strings.EqualFold(a.Name, name) {
+			return a, true
+		}
+	}
+	return releaseAsset{}, false
+}
+func downloadLimited(rawURL string, max int64) ([]byte, error) {
+	req, e := http.NewRequest("GET", rawURL, nil)
+	if e != nil {
+		return nil, e
+	}
+	req.Header.Set("User-Agent", "SupraProductivity/"+appVersion)
+	resp, e := (&http.Client{Timeout: 90 * time.Second}).Do(req)
+	if e != nil {
+		return nil, e
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	b, e := io.ReadAll(io.LimitReader(resp.Body, max+1))
+	if e != nil {
+		return nil, e
+	}
+	if int64(len(b)) > max {
+		return nil, fmt.Errorf("asset vượt giới hạn")
+	}
+	return b, nil
+}
+func expectedSHA(text, filename string) (string, error) {
+	for _, line := range strings.Split(text, "\n") {
+		f := strings.Fields(line)
+		if len(f) >= 2 && strings.TrimPrefix(f[len(f)-1], "*") == filename {
+			h := strings.ToLower(f[0])
+			if len(h) == 64 {
+				return h, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("không tìm thấy SHA256 cho %s", filename)
+}
+func fileSHA256(path string) (string, error) {
+	f, e := os.Open(path)
+	if e != nil {
+		return "", e
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, e = io.Copy(h, f); e != nil {
+		return "", e
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+func stageGitHubUpdate(r releaseInfo) error {
+	exeAsset, ok := assetByName(r, "SupraProductivity.exe")
+	if !ok {
+		return fmt.Errorf("release thiếu SupraProductivity.exe")
+	}
+	shaAsset, ok := assetByName(r, "SHA256SUMS.txt")
+	if !ok {
+		return fmt.Errorf("release thiếu SHA256SUMS.txt")
+	}
+	shaBytes, e := downloadLimited(shaAsset.BrowserDownloadURL, 128*1024)
+	if e != nil {
+		return e
+	}
+	expected, e := expectedSHA(string(shaBytes), "SupraProductivity.exe")
+	if e != nil {
+		return e
+	}
+	exePath, e := os.Executable()
+	if e != nil {
+		return e
+	}
+	exePath, _ = filepath.Abs(exePath)
+	stage := exePath + ".update"
+	backup := exePath + ".bak"
+	script := exePath + ".update.cmd"
+	data, e := downloadLimited(exeAsset.BrowserDownloadURL, 150*1024*1024)
+	if e != nil {
+		return e
+	}
+	if e = os.WriteFile(stage, data, 0700); e != nil {
+		return fmt.Errorf("thư mục EXE không ghi được: %w", e)
+	}
+	actual, e := fileSHA256(stage)
+	if e != nil {
+		_ = os.Remove(stage)
+		return e
+	}
+	if actual != expected {
+		_ = os.Remove(stage)
+		return fmt.Errorf("SHA256 không khớp")
+	}
+	current, e := os.ReadFile(exePath)
+	if e != nil {
+		_ = os.Remove(stage)
+		return e
+	}
+	if e = os.WriteFile(backup, current, 0700); e != nil {
+		_ = os.Remove(stage)
+		return e
+	}
+	cmd := "@echo off\r\nsetlocal\r\n" +
+		"for /L %%I in (1,1,30) do (\r\n" +
+		"  move /Y \"" + stage + "\" \"" + exePath + "\" >nul 2>nul && goto replaced\r\n" +
+		"  ping 127.0.0.1 -n 2 >nul\r\n" +
+		")\r\n" +
+		"move /Y \"" + backup + "\" \"" + exePath + "\" >nul 2>nul\r\nexit /b 1\r\n" +
+		":replaced\r\nstart \"\" \"" + exePath + "\"\r\ndel \"%~f0\"\r\n"
+	if e = os.WriteFile(script, []byte(cmd), 0700); e != nil {
+		return e
+	}
+	logEvent("INFO", "UPDATE_STAGED", "version", r.TagName, "sha256", expected[:12])
+	if e = exec.Command("cmd.exe", "/C", script).Start(); e != nil {
+		return e
+	}
+	setStatus("Đã xác minh SHA256. Ứng dụng sẽ đóng để cập nhật " + r.TagName + ".")
+	time.Sleep(500 * time.Millisecond)
+	pPostMessage.Call(mainWnd, WM_CLOSE, 0, 0)
+	return nil
+}
 func checkUpdateInteractive() {
 	setStatus("Đang kiểm tra cập nhật…")
 	r, e := latestRelease()
@@ -1239,8 +1369,15 @@ func checkUpdateInteractive() {
 		setStatus("Đang dùng bản mới nhất: " + r.TagName)
 		return
 	}
-	setStatus("Có bản " + r.TagName + "; đang mở GitHub Release.")
-	pShellExecute.Call(0, uintptr(unsafe.Pointer(ptr("open"))), uintptr(unsafe.Pointer(ptr(r.HTMLURL))), 0, 0, SW_SHOW)
+	setStatus("Đang tải và xác minh " + r.TagName + "…")
+	if e = stageGitHubUpdate(r); e != nil {
+		setStatus("Không thể tự cập nhật: " + e.Error() + ". Có thể cập nhật thủ công từ Release.")
+		logEvent("WARN", "UPDATE_STAGE_FAILED", "error", e.Error())
+		if r.HTMLURL != "" {
+			pShellExecute.Call(0, uintptr(unsafe.Pointer(ptr("open"))), uintptr(unsafe.Pointer(ptr(r.HTMLURL))), 0, 0, SW_SHOW)
+		}
+		return
+	}
 }
 
 func main() {
