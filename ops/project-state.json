@@ -5,9 +5,9 @@
   "repository": "tamnv2/supra-productivity-desktop",
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
-  "current_version": "v1.3.1-public-source-test",
-  "current_phase": "github-build-verified-owner-test",
-  "current_status": "github_ci_verified_test_candidate",
+  "current_version": "v1.3.1-test.1",
+  "current_phase": "owner-runtime-verification",
+  "current_status": "github_prerelease_published_owner_test_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -51,14 +51,18 @@
     "Live payroll/productivity and active-picking bindings execute through a DPAPI-protected local runtime profile with Windows proxy/system/direct fallback",
     "GitHub pull-request CI passed project-state guard, public-repo scan, go test, go vet, Windows x64 cross-build, binary public scan, packaging and artifact upload",
     "GitHub Actions test artifact created from canonical source (run 35412096189, artifact 10574174267)",
-    "Staged GitHub updater implemented with stable-release lookup, SHA256 verification, backup, replace-after-exit and restart"
+    "Staged GitHub updater implemented with stable-release lookup, SHA256 verification, backup, replace-after-exit and restart",
+    "Automated owner-test prerelease publishing added via release/test-version.txt",
+    "Automated accepted-stable publishing added via release/stable-version.txt",
+    "Owner-test prerelease v1.3.1-test.1 built and published successfully by GitHub Actions",
+    "Main-branch Build Windows Portable also passed for the v1.3.1-test.1 request commit"
   ],
-  "current_task": "Owner-test the GitHub-built Windows x64 artifact on the company laptop (PDA and Office), then promote only an accepted build to a tagged GitHub Release.",
-  "next_action": "Test the GitHub-built artifact from Actions run 35412096189. If behavior is accepted, create a version tag/release via the existing Release Windows Portable workflow; if not, analyze sanitized diagnostics, fix verified regressions, and rebuild.",
+  "current_task": "Owner-test GitHub prerelease v1.3.1-test.1 on the company laptop across PDA and restricted Office networks.",
+  "next_action": "Download and test v1.3.1-test.1 from GitHub Releases. If owner accepts, create/update release/stable-version.txt with the approved semantic version to automatically build and publish a stable release; otherwise analyze sanitized diagnostics and fix only verified regressions.",
   "blockers": [
-    "Stable GitHub Release is intentionally not published yet because the GitHub-built candidate has not been owner-tested on the target company laptop.",
-    "Manual/offline update package selection and startup-health rollback are still enhancement gaps; current GitHub updater already verifies SHA256, backs up, replaces and restarts.",
-    "Some functional parity items remain owner-verification tasks (PICK flicker/event storm, CPU telemetry depth, all target/quota controls, User/PDA live mapping)."
+    "Owner runtime acceptance of v1.3.1-test.1 is required before publishing a stable release.",
+    "Manual/offline updater picker and startup-health rollback remain hardening items, not blockers for testing.",
+    "Functional parity items still require target-environment verification."
   ],
   "known_issues": [
     "GitHub-built candidate requires owner test on PDA and restricted Office networks.",
@@ -77,7 +81,10 @@
     "github_actions_build": "passed_run_35412096189",
     "public_repo_guard": "passed",
     "windows_x64_cross_build": "passed",
-    "binary_public_scan": "passed"
+    "binary_public_scan": "passed",
+    "v1.3.1-test.1": "github_prerelease_published_owner_test_pending",
+    "candidate_publish_workflow": "passed_run_35412269300",
+    "main_build_after_candidate_request": "passed_run_35412269285"
   },
   "security": {
     "public_repo": true,
@@ -115,7 +122,13 @@
     "binary_public_guard": "passed",
     "packaging": "passed",
     "artifact_upload": "passed",
-    "stable_release": "pending_owner_acceptance"
+    "stable_release": "pending_owner_acceptance",
+    "candidate_workflow": ".github/workflows/publish-test.yml",
+    "stable_publish_workflow": ".github/workflows/publish-stable.yml",
+    "candidate_release": "v1.3.1-test.1",
+    "candidate_release_status": "published_prerelease",
+    "candidate_publish_run_id": 35412269300,
+    "main_build_run_id": 35412269285
   },
   "update_pipeline": {
     "latest_stable_release_check": "implemented",
