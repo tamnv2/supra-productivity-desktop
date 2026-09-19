@@ -1099,6 +1099,10 @@ func handleCommand(id, code int, source uintptr) {
 	case ID_CURL_IMPORT:
 		importCurl()
 	case ID_SOURCE_CLEAR:
+		if busy.Load() {
+			setStatus("Đang đồng bộ; chờ hoàn tất trước khi xoá nguồn dữ liệu.")
+			return
+		}
 		name := sourceBindingName(comboText(settingsSourceCombo))
 		if name != "" {
 			if err := removeSource(name); err != nil {
@@ -1536,6 +1540,10 @@ func parseCurl(raw string) (credentials, error) {
 	return c, nil
 }
 func importCurl() {
+	if busy.Load() {
+		setStatus("Đang đồng bộ; chờ hoàn tất trước khi thay đổi nguồn dữ liệu.")
+		return
+	}
 	raw := getText(settingsCurl)
 	selected := comboText(settingsSourceCombo)
 	bindingName := sourceBindingName(selected)
