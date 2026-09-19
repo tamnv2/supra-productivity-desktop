@@ -135,3 +135,23 @@ func TestExpandBindingRelativeDates(t *testing.T) {
 		t.Fatalf("header=%q", got.Headers["X-Date"])
 	}
 }
+
+
+func TestEnrichPayrollAndUserPDAFromActive(t *testing.T) {
+	payroll, err := ParsePayrollXLSX(syntheticXLSX(t), Binding{})
+	if err != nil { t.Fatal(err) }
+	payroll[0].Name = ""
+	payroll[0].MNV = ""
+	activeJSON := []byte(`{"data":[{"UserName":"picker01","FullName":"Active Name","EmployeeId":"E001","Provider":"Inhouse","SiteId":"1291","Tenure":"2 tháng","DeviceId":"PDA-07","Client":"HY1","Status":"running"}]}`)
+	active, err := ParseActiveJSON(activeJSON, Binding{})
+	if err != nil { t.Fatal(err) }
+	enriched := EnrichPayrollFromActive(payroll, active)
+	if enriched[0].Name != "Active Name" || enriched[0].MNV != "E001" {
+		t.Fatalf("enrichment failed: %#v", enriched[0])
+	}
+	people := BuildPeopleTableCombined(enriched, active)
+	if len(people.Rows) != 1 { t.Fatalf("people rows=%d", len(people.Rows)) }
+	if people.Rows[0][2] != "picker01" || people.Rows[0][6] != "PDA-07" {
+		t.Fatalf("people row=%#v", people.Rows[0])
+	}
+}
