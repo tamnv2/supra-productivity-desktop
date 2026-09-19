@@ -27,6 +27,7 @@ import (
 	"unsafe"
 
 	"github.com/tamnv2/supra-productivity-desktop/internal/core"
+	paycache "github.com/tamnv2/supra-productivity-desktop/internal/cache"
 	liveio "github.com/tamnv2/supra-productivity-desktop/internal/live"
 )
 
@@ -132,6 +133,7 @@ const (
 	ID_NAV_ACTIVE
 	ID_NAV_PICK
 	ID_NAV_PACK
+	ID_NAV_REPORT
 	ID_NAV_SHIFT
 	ID_NAV_USERPDA
 	ID_NAV_LOG
@@ -157,6 +159,8 @@ const (
 	ID_PICK_1C1LERR    = 516
 	ID_PACK_SHIFT      = 520
 	ID_SHIFT_MANUAL    = 530
+	ID_REPORT_APPLY    = 540
+	ID_REPORT_MODE     = 541
 )
 
 const TIMER_METRICS = 9001
@@ -268,10 +272,12 @@ type runtimeProfile struct {
 }
 type liveState struct {
 	Pick, Pack, Shift, Active, UserPDA core.Table
+	Reports                            core.ReportSet
 	Payroll                            []core.PayrollRow
 	LastSync                           time.Time
 	LastError                          string
 	Route                              string
+	CacheDays, CacheTotal              int
 }
 
 type tableModel struct {
@@ -288,6 +294,7 @@ const (
 	kindNumber
 	kindPercent
 	kindDate
+	kindDay
 	kindTenure
 	kindBool
 )
@@ -354,10 +361,11 @@ var (
 	pendingStatus                                                                                     string
 	statusMu                                                                                          sync.Mutex
 	activeCombo, pickShiftCombo, packShiftCombo, shiftManualCombo                                     uintptr
+	reportFromEdit, reportToEdit, reportModeCombo                                                     uintptr
 	settingsSourceCombo                                                                               uintptr
 	syncButton, updateButton                                                                            uintptr
-	navOrder                                                                                             = []int{ID_NAV_OVERVIEW, ID_NAV_ACTIVE, ID_NAV_PICK, ID_NAV_PACK, ID_NAV_SHIFT, ID_NAV_USERPDA, ID_NAV_LOG, ID_NAV_SETTINGS}
-	navLabels                                                                                            = map[int]string{ID_NAV_OVERVIEW: "TỔNG QUAN", ID_NAV_ACTIVE: "ĐANG LẤY HÀNG", ID_NAV_PICK: "PICK", ID_NAV_PACK: "PACK", ID_NAV_SHIFT: "PHÂN CA", ID_NAV_USERPDA: "USER / PDA", ID_NAV_LOG: "LOG", ID_NAV_SETTINGS: "THIẾT LẬP"}
+	navOrder                                                                                             = []int{ID_NAV_OVERVIEW, ID_NAV_ACTIVE, ID_NAV_PICK, ID_NAV_PACK, ID_NAV_REPORT, ID_NAV_SHIFT, ID_NAV_USERPDA, ID_NAV_LOG, ID_NAV_SETTINGS}
+	navLabels                                                                                            = map[int]string{ID_NAV_OVERVIEW: "TỔNG QUAN", ID_NAV_ACTIVE: "ĐANG LẤY HÀNG", ID_NAV_PICK: "PICK", ID_NAV_PACK: "PACK", ID_NAV_REPORT: "BÁO CÁO", ID_NAV_SHIFT: "PHÂN CA", ID_NAV_USERPDA: "USER / PDA", ID_NAV_LOG: "LOG", ID_NAV_SETTINGS: "THIẾT LẬP"}
 	logQueue                                                                                             = make(chan string, 4096)
 	logFlush                                                                                             = make(chan chan struct{})
 	logDropped                                                                                           atomic.Uint64
@@ -376,6 +384,8 @@ var (
 	windowHeight                                                                                         atomic.Int64
 	currentTableTop                                                                                      = 170
 	currentLogTop                                                                                        = 170
+	selectedFrom, selectedTo                                                                             time.Time
+	reportMode                                                                                           = "Recap"
 )
 
 func maxInt(a, b int) int { if a > b { return a }; return b }
@@ -504,6 +514,9 @@ func destroyPage() {
 	pickShiftCombo = 0
 	packShiftCombo = 0
 	shiftManualCombo = 0
+	reportFromEdit = 0
+	reportToEdit = 0
+	reportModeCombo = 0
 	settingsSourceCombo = 0
 	overviewMetric = 0
 	currentTableTop = 170
@@ -570,9 +583,11 @@ func inferKind(h string) colKind {
 		return kindTenure
 	case strings.Contains(n, "tỉ lệ") || strings.Contains(n, "tiến độ") || strings.Contains(n, "%") || strings.Contains(n, "ty le"):
 		return kindPercent
+	case n == "ngày" || n == "ngay":
+		return kindDay
 	case strings.Contains(n, "thời gian bắt đầu") || strings.Contains(n, "thời gian kết thúc đơn") && !strings.Contains(n, "cuối cùng"):
 		return kindDate
-	case strings.HasPrefix(n, "do ") || strings.HasPrefix(n, "sl ") || strings.Contains(n, "nsld") || strings.Contains(n, "mã nhân viên") || strings.Contains(n, "site") || strings.Contains(n, "tốc độ"):
+	case strings.HasPrefix(n, "do ") || strings.HasPrefix(n, "sl ") || strings.Contains(n, "tổng sl") || strings.HasPrefix(n, "time ") || strings.Contains(n, "tổng time") || strings.Contains(n, "nsld") || strings.Contains(n, "mã nhân viên") || strings.Contains(n, "site") || strings.Contains(n, "tốc độ"):
 		return kindNumber
 	case strings.Contains(n, "bỏ qua") || strings.Contains(n, "kiểm tra 20"):
 		return kindBool
@@ -589,6 +604,12 @@ func formatCell(v any, k colKind) string {
 		case time.Time:
 			if x.IsZero() { return "" }
 			return x.Format("02/01/2006 15:04:05")
+		}
+	case kindDay:
+		switch x := v.(type) {
+		case time.Time:
+			if x.IsZero() { return "" }
+			return x.Format("02/01/2006")
 		}
 	case kindBool:
 		if b, ok := v.(bool); ok { if b { return "Có" }; return "Không" }
@@ -609,7 +630,7 @@ func compare(a, b any, k colKind) int {
 	case kindTenure:
 		ad := core.ParseTenureDays(fmt.Sprint(a)); bd := core.ParseTenureDays(fmt.Sprint(b))
 		if ad < bd { return -1 }; if ad > bd { return 1 }; return 0
-	case kindDate:
+	case kindDate, kindDay:
 		at, _ := a.(time.Time); bt, _ := b.(time.Time)
 		if at.Before(bt) { return -1 }; if at.After(bt) { return 1 }; return 0
 	}
@@ -713,6 +734,9 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
 			} else {
 				logEvent("INFO", "DASHBOARD_BINDINGS_READY", "binding_count", "2")
 			}
+		}
+		if err := refreshLocalData(); err != nil {
+			logEvent("WARN", "CACHE_STARTUP_READ_FAILED", "error", err.Error())
 		}
 		lastTelemetry = time.Now()
 		logEvent("INFO", "APP_START", "version", appVersion)
@@ -891,6 +915,7 @@ func renderPage(id int) {
 	case ID_NAV_ACTIVE: renderActive()
 	case ID_NAV_PICK: renderPick()
 	case ID_NAV_PACK: renderPack()
+	case ID_NAV_REPORT: renderReport()
 	case ID_NAV_SHIFT: renderShift()
 	case ID_NAV_USERPDA: renderUserPDA()
 	case ID_NAV_LOG: renderLog()
@@ -932,13 +957,14 @@ func renderOverview() {
 	lastSync := "Chưa đồng bộ trong phiên này"
 	if !ls.LastSync.IsZero() { lastSync = ls.LastSync.Format("02/01/2006 15:04:05") }
 	static("Lần đồng bộ: "+lastSync, 48, 322, 420, 24, false)
+	static(fmt.Sprintf("Khoảng dữ liệu: %s → %s   ·   Cache %d/%d ngày", selectedFrom.Format("02/01/2006"), selectedTo.Format("02/01/2006"), ls.CacheDays, ls.CacheTotal), 48, 346, 620, 24, false)
 	route := ls.Route
 	if route == "" { route = "Chưa xác định" }
-	static("Kênh dữ liệu: "+route, 500, 322, 400, 24, false)
+	static("Kênh dữ liệu: "+route, 700, 322, 400, 24, false)
 	if ls.LastError != "" {
-		static("Lỗi gần nhất: "+ls.LastError, 48, 352, w-96, 24, false)
+		static("Lỗi gần nhất: "+ls.LastError, 700, 346, w-748, 24, false)
 	} else {
-		static("Trạng thái: Không ghi nhận lỗi đồng bộ.", 48, 352, w-96, 24, false)
+		static("Trạng thái: Không ghi nhận lỗi đồng bộ.", 700, 346, w-748, 24, false)
 	}
 }
 
@@ -984,6 +1010,29 @@ func renderPack() {
 	t := live.Pack
 	liveMu.RUnlock()
 	renderTable(t, 204)
+}
+
+func renderReport() {
+	pageTitle("BÁO CÁO", "Recap, tỷ lệ chẵn/lẻ và NSLĐ tính trực tiếp trong EXE theo khoảng ngày.")
+	w, _ := clientSize()
+	groupBox("KHOẢNG DỮ LIỆU", 24, 124, w-48, 96)
+	static("Từ ngày", 46, 153, 70, 22, false)
+	reportFromEdit = create("EDIT", selectedFrom.Format("02/01/2006"), WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL, 120, 146, 118, 30, mainWnd, 0)
+	setFont(reportFromEdit, fontNormal)
+	addPage(reportFromEdit)
+	static("Đến ngày", 258, 153, 72, 22, false)
+	reportToEdit = create("EDIT", selectedTo.Format("02/01/2006"), WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL, 334, 146, 118, 30, mainWnd, 0)
+	setFont(reportToEdit, fontNormal)
+	addPage(reportToEdit)
+	button(ID_REPORT_APPLY, "ÁP DỤNG", 470, 145, 104, 32)
+	static("Báo cáo", 600, 153, 62, 22, false)
+	reportModeCombo = combo(ID_REPORT_MODE, []string{"Recap", "% chẵn lẻ", "NSLD Pick", "NSLD Pack"}, reportMode, 670, 146, 150, 180)
+	liveMu.RLock()
+	rs := live.Reports
+	cacheDays, cacheTotal := live.CacheDays, live.CacheTotal
+	liveMu.RUnlock()
+	static(fmt.Sprintf("Cache %d/%d ngày. Đồng bộ chỉ tải ngày còn thiếu; ngày hôm nay luôn làm mới. Pick/Pack dùng ngày kết thúc.", cacheDays, cacheTotal), 46, 186, w-92, 22, false)
+	renderTable(reportTable(rs, reportMode), 234)
 }
 
 func renderShift() {
@@ -1046,8 +1095,8 @@ func renderSettings() {
 	static("Phiên và cấu hình chỉ lưu cục bộ theo Windows user; dữ liệu nhạy cảm không nằm trong bản phát hành public.", rightX+24, 434, rightW-48, 42, false)
 
 	groupBox("LUỒNG XỬ LÝ", 24, 504, w-48, 116)
-	static("Đang lấy hàng → dữ liệu live.   Sản lượng → Mapping → Phân ca → Pick / Pack.   User / PDA được hợp nhất từ dữ liệu nhân sự có trong hai luồng.", 46, 540, w-92, 42, true)
-	static("Sau khi lưu cấu hình một lần, vận hành hàng ngày chỉ cần bấm ĐỒNG BỘ.", 46, 584, w-92, 24, false)
+	static("Đang lấy hàng → dữ liệu live.   Sản lượng → cache theo ngày → Mapping → Phân ca → Pick / Pack → Báo cáo.", 46, 540, w-92, 42, true)
+	static("Không có đồng bộ định kỳ. Sau khi lưu cấu hình một lần, chỉ bấm ĐỒNG BỘ khi cần; EXE tự tải bù ngày còn thiếu.", 46, 584, w-92, 24, false)
 }
 
 func filterActive(t core.Table, status string) core.Table {
@@ -1133,6 +1182,21 @@ func handleCommand(id, code int, source uintptr) {
 			recalculate()
 			pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0)
 		}
+	case ID_REPORT_APPLY:
+		if captureReportDates() {
+			if err := refreshLocalData(); err != nil {
+				setStatus("Không đọc được cache dữ liệu: " + err.Error())
+				logEvent("WARN", "CACHE_REFRESH_FAILED", "error", err.Error())
+			} else {
+				setStatus(fmt.Sprintf("Đã áp dụng %s → %s.", selectedFrom.Format("02/01/2006"), selectedTo.Format("02/01/2006")))
+			}
+			pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0)
+		}
+	case ID_REPORT_MODE:
+		if code == 1 {
+			reportMode = comboText(reportModeCombo)
+			pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0)
+		}
 	case ID_PICK_DEDUCT:
 		settings.Business.PickDeductSKU = checked(source); saveSettings(); recalculate(); pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0)
 	case ID_PICK_REQUIRE:
@@ -1148,6 +1212,97 @@ func handleCommand(id, code int, source uintptr) {
 	case ID_SHIFT_MANUAL:
 		if code == 1 { applyManualShift() }
 	}
+}
+
+func dateOnly(t time.Time) time.Time {
+	if t.IsZero() {
+		return time.Time{}
+	}
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
+}
+
+func parseReportDate(raw string) (time.Time, error) {
+	v := strings.TrimSpace(raw)
+	t, err := time.ParseInLocation("02/01/2006", v, time.Local)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("ngày %q không đúng định dạng dd/mm/yyyy", v)
+	}
+	return dateOnly(t), nil
+}
+
+func captureReportDates() bool {
+	if reportFromEdit == 0 || reportToEdit == 0 {
+		return true
+	}
+	from, err := parseReportDate(getText(reportFromEdit))
+	if err != nil {
+		setStatus(err.Error())
+		return false
+	}
+	to, err := parseReportDate(getText(reportToEdit))
+	if err != nil {
+		setStatus(err.Error())
+		return false
+	}
+	today := dateOnly(time.Now())
+	if to.Before(from) {
+		setStatus("Đến ngày phải bằng hoặc sau Từ ngày.")
+		return false
+	}
+	if to.After(today) {
+		setStatus("Không thể tải dữ liệu của ngày trong tương lai.")
+		return false
+	}
+	selectedFrom, selectedTo = from, to
+	return true
+}
+
+func payrollCacheDir() string {
+	return filepath.Join(settings.DataFolder, "PayrollCache")
+}
+
+func reportTable(r core.ReportSet, mode string) core.Table {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "% chẵn lẻ":
+		return r.EvenOdd
+	case "nsld pick":
+		return r.NSLDPick
+	case "nsld pack":
+		return r.NSLDPack
+	default:
+		return r.Recap
+	}
+}
+
+func refreshLocalData() error {
+	rows, covered, err := paycache.LoadRange(payrollCacheDir(), selectedFrom, selectedTo)
+	if err != nil {
+		return err
+	}
+	operational := paycache.RowsForDate(rows, selectedTo)
+
+	liveMu.RLock()
+	active := live.Active
+	liveMu.RUnlock()
+
+	effective := liveio.EnrichPayrollFromActive(operational, active)
+	var pick, pack, shift core.Table
+	if len(effective) > 0 {
+		pick, pack, shift = core.BuildTables(effective, settings.Business, time.Now())
+	}
+	people := liveio.BuildPeopleTableCombined(effective, active)
+	reports := core.BuildReports(rows, selectedFrom, selectedTo)
+
+	liveMu.Lock()
+	live.Payroll = effective
+	live.Pick, live.Pack, live.Shift = pick, pack, shift
+	live.UserPDA = people
+	live.Reports = reports
+	live.CacheDays = covered
+	live.CacheTotal = paycache.TotalDays(selectedFrom, selectedTo)
+	liveMu.Unlock()
+	return nil
 }
 
 func recalculate() {
@@ -1346,13 +1501,27 @@ func syncOne(ctx context.Context, name string, b liveio.Binding, s liveio.Sessio
 	}
 }
 
+func syncPayrollRange(ctx context.Context, b liveio.Binding, s liveio.Session, from, to time.Time) liveSyncResult {
+	b = liveio.ExpandBindingRange(b, time.Now(), from, to)
+	data, meta, route, err := executeWithFallback(ctx, b, s)
+	if err != nil {
+		return liveSyncResult{name: "payroll-productivity", meta: meta, route: route, err: err}
+	}
+	rows, err := liveio.ParsePayrollXLSX(data, b)
+	return liveSyncResult{name: "payroll-productivity", payroll: rows, meta: meta, route: route, err: err}
+}
+
 func startSync() {
+	if !captureReportDates() {
+		return
+	}
 	if !busy.CompareAndSwap(false, true) {
 		setStatus("Đang đồng bộ; không tạo thêm tác vụ chồng nhau.")
 		return
 	}
-	setStatus("Đang đồng bộ Dashboard…")
-	logEvent("INFO", "SYNC_START")
+	from, to := selectedFrom, selectedTo
+	setStatus(fmt.Sprintf("Đang đồng bộ %s → %s…", from.Format("02/01/2006"), to.Format("02/01/2006")))
+	logEvent("INFO", "SYNC_START", "from", from.Format("2006-01-02"), "to", to.Format("2006-01-02"))
 	go func() {
 		defer busy.Store(false)
 		defer pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0)
@@ -1378,102 +1547,122 @@ func startSync() {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
-		defer cancel()
-		ch := make(chan liveSyncResult, 2)
-		session := currentLiveSession()
-		go syncOne(ctx, "active-picking", activeBinding, session, ch)
-		go syncOne(ctx, "payroll-productivity", payBinding, session, ch)
+		missing, err := paycache.MissingRanges(payrollCacheDir(), from, to, dateOnly(time.Now()))
+		if err != nil {
+			setStatus("Không kiểm tra được cache dữ liệu: " + err.Error())
+			logEvent("ERROR", "CACHE_PLAN_FAILED", "error", err.Error())
+			return
+		}
 
-		var payroll []core.PayrollRow
-		var active core.Table
+		ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+		defer cancel()
+		session := currentLiveSession()
+		activeCh := make(chan liveSyncResult, 1)
+		go syncOne(ctx, "active-picking", activeBinding, session, activeCh)
+
 		var problems []string
-		success := 0
 		route := ""
-		for i := 0; i < 2; i++ {
-			r := <-ch
+		downloadedDays := 0
+		downloadedRows := 0
+		for _, rg := range missing {
+			r := syncPayrollRange(ctx, payBinding, session, rg.From, rg.To)
 			if r.err != nil {
-				problems = append(problems, sourceLabel(r.name)+": "+r.err.Error())
-				logEvent("ERROR", "SYNC_SOURCE_FAILED",
-					"source", r.name,
+				problems = append(problems, fmt.Sprintf("Sản lượng %s-%s: %v", rg.From.Format("02/01"), rg.To.Format("02/01"), r.err))
+				logEvent("ERROR", "SYNC_PAYROLL_RANGE_FAILED",
+					"from", rg.From.Format("2006-01-02"),
+					"to", rg.To.Format("2006-01-02"),
 					"http_status", strconv.Itoa(r.meta.StatusCode),
 					"bytes", strconv.Itoa(r.meta.Bytes),
 					"elapsed_ms", strconv.FormatInt(r.meta.Elapsed.Milliseconds(), 10),
 					"error", r.err.Error())
 				continue
 			}
-			success++
-			if route == "" { route = r.route }
-			if r.name == "payroll-productivity" { payroll = r.payroll }
-			if r.name == "active-picking" { active = r.table }
-			rows := len(r.payroll)
-			if r.name == "active-picking" { rows = len(r.table.Rows) }
-			logEvent("INFO", "SYNC_SOURCE_OK",
-				"source", r.name,
+			if err := paycache.SaveRange(payrollCacheDir(), rg.From, rg.To, r.payroll); err != nil {
+				problems = append(problems, "Lưu cache sản lượng: "+err.Error())
+				logEvent("ERROR", "CACHE_SAVE_FAILED", "error", err.Error())
+				continue
+			}
+			if route == "" {
+				route = r.route
+			}
+			days := paycache.TotalDays(rg.From, rg.To)
+			downloadedDays += days
+			downloadedRows += len(r.payroll)
+			logEvent("INFO", "SYNC_PAYROLL_RANGE_OK",
+				"from", rg.From.Format("2006-01-02"),
+				"to", rg.To.Format("2006-01-02"),
+				"days", strconv.Itoa(days),
+				"rows", strconv.Itoa(len(r.payroll)),
 				"http_status", strconv.Itoa(r.meta.StatusCode),
 				"bytes", strconv.Itoa(r.meta.Bytes),
-				"rows", strconv.Itoa(rows),
 				"elapsed_ms", strconv.FormatInt(r.meta.Elapsed.Milliseconds(), 10),
 				"route", r.route)
 		}
 
-		if success == 0 {
+		activeResult := <-activeCh
+		if activeResult.err != nil {
+			problems = append(problems, "Đang lấy hàng: "+activeResult.err.Error())
+			logEvent("ERROR", "SYNC_SOURCE_FAILED",
+				"source", "active-picking",
+				"http_status", strconv.Itoa(activeResult.meta.StatusCode),
+				"bytes", strconv.Itoa(activeResult.meta.Bytes),
+				"elapsed_ms", strconv.FormatInt(activeResult.meta.Elapsed.Milliseconds(), 10),
+				"error", activeResult.err.Error())
+		} else {
+			if route == "" {
+				route = activeResult.route
+			}
 			liveMu.Lock()
-			live.LastError = strings.Join(problems, " | ")
+			live.Active = activeResult.table
 			liveMu.Unlock()
-			setStatus("Đồng bộ lỗi; dữ liệu hợp lệ trước đó vẫn được giữ nguyên.")
-			return
+			logEvent("INFO", "SYNC_SOURCE_OK",
+				"source", "active-picking",
+				"rows", strconv.Itoa(len(activeResult.table.Rows)),
+				"http_status", strconv.Itoa(activeResult.meta.StatusCode),
+				"bytes", strconv.Itoa(activeResult.meta.Bytes),
+				"elapsed_ms", strconv.FormatInt(activeResult.meta.Elapsed.Milliseconds(), 10),
+				"route", activeResult.route)
 		}
 
-		// Preserve the Excel behavior: production is processed through Mapping /
-		// Phân ca, while current-picking profile fields enrich missing employee data.
-		liveMu.RLock()
-		effectivePayroll := append([]core.PayrollRow(nil), live.Payroll...)
-		effectiveActive := live.Active
-		liveMu.RUnlock()
-		if len(active.Headers) > 0 { effectiveActive = active }
-		if len(payroll) > 0 {
-			effectivePayroll = liveio.EnrichPayrollFromActive(payroll, effectiveActive)
+		if err := refreshLocalData(); err != nil {
+			problems = append(problems, "Đọc cache: "+err.Error())
+			logEvent("ERROR", "CACHE_REFRESH_FAILED", "error", err.Error())
 		}
-
-		var pick, pack, shift core.Table
-		if len(payroll) > 0 {
-			pick, pack, shift = core.BuildTables(effectivePayroll, settings.Business, time.Now())
-		}
-		people := liveio.BuildPeopleTableCombined(effectivePayroll, effectiveActive)
 
 		liveMu.Lock()
-		if len(payroll) > 0 {
-			live.Payroll = effectivePayroll
-			live.Pick, live.Pack, live.Shift = pick, pack, shift
-		}
-		if len(active.Headers) > 0 { live.Active = active }
-		if len(people.Headers) > 0 { live.UserPDA = people }
 		live.LastSync = time.Now()
 		live.LastError = strings.Join(problems, " | ")
-		live.Route = route
+		if route != "" {
+			live.Route = route
+		}
 		pickN := len(live.Pick.Rows)
 		packN := len(live.Pack.Rows)
 		shiftN := len(live.Shift.Rows)
 		activeN := len(live.Active.Rows)
 		peopleN := len(live.UserPDA.Rows)
-		payrollN := len(live.Payroll)
+		cacheDays, cacheTotal := live.CacheDays, live.CacheTotal
 		liveMu.Unlock()
 
 		if len(problems) > 0 {
-			setStatus(fmt.Sprintf("Đồng bộ một phần · User/PDA %d · Pick %d · Pack %d · Phân ca %d · Đang lấy %d", peopleN, pickN, packN, shiftN, activeN))
+			setStatus(fmt.Sprintf("Đồng bộ một phần · cache %d/%d ngày · tải mới %d ngày · Pick %d · Pack %d", cacheDays, cacheTotal, downloadedDays, pickN, packN))
+		} else if downloadedDays == 0 {
+			setStatus(fmt.Sprintf("Dữ liệu lịch sử đã đủ cache %d/%d ngày · không tải lại mù quáng · Đang lấy %d", cacheDays, cacheTotal, activeN))
 		} else {
-			setStatus(fmt.Sprintf("Đồng bộ xong · User/PDA %d · Pick %d · Pack %d · Phân ca %d · Đang lấy %d", peopleN, pickN, packN, shiftN, activeN))
+			setStatus(fmt.Sprintf("Đồng bộ xong · cache %d/%d ngày · tải mới %d ngày/%d dòng · Pick %d · Pack %d", cacheDays, cacheTotal, downloadedDays, downloadedRows, pickN, packN))
 		}
 		logEvent("INFO", "SYNC_DONE",
-			"success_sources", strconv.Itoa(success),
-			"failed_sources", strconv.Itoa(len(problems)),
-			"payroll_rows", strconv.Itoa(payrollN),
+			"from", from.Format("2006-01-02"),
+			"to", to.Format("2006-01-02"),
+			"downloaded_days", strconv.Itoa(downloadedDays),
+			"downloaded_rows", strconv.Itoa(downloadedRows),
+			"cache_days", strconv.Itoa(cacheDays),
+			"cache_total", strconv.Itoa(cacheTotal),
 			"user_pda_rows", strconv.Itoa(peopleN),
 			"pick_rows", strconv.Itoa(pickN),
 			"pack_rows", strconv.Itoa(packN),
 			"shift_rows", strconv.Itoa(shiftN),
-			"active_rows", strconv.Itoa(activeN))
+			"active_rows", strconv.Itoa(activeN),
+			"problems", strconv.Itoa(len(problems)))
 	}()
 }
 
@@ -1693,13 +1882,17 @@ func networkTest() {
 		return
 	}
 
+	testDay := selectedTo
+	if testDay.IsZero() {
+		testDay = dateOnly(time.Now())
+	}
 	setStatus("Đang kiểm tra Đang lấy hàng và Sản lượng…")
-	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	ch := make(chan liveSyncResult, 2)
 	session := currentLiveSession()
 	go syncOne(ctx, "active-picking", activeBinding, session, ch)
-	go syncOne(ctx, "payroll-productivity", payBinding, session, ch)
+	go func() { ch <- syncPayrollRange(ctx, payBinding, session, testDay, testDay) }()
 
 	okCount := 0
 	var problems []string
@@ -1711,9 +1904,10 @@ func networkTest() {
 			continue
 		}
 		okCount++
-		rows := 0
-		if r.name == "active-picking" { rows = len(r.table.Rows) }
-		if r.name == "payroll-productivity" { rows = len(r.payroll) }
+		rows := len(r.payroll)
+		if r.name == "active-picking" {
+			rows = len(r.table.Rows)
+		}
 		logEvent("INFO", "DASHBOARD_TEST_OK", "source", r.name, "rows", strconv.Itoa(rows), "http_status", strconv.Itoa(r.meta.StatusCode), "route", r.route)
 	}
 	if okCount == 2 {
@@ -1745,6 +1939,8 @@ func ensureDirs() {
 	os.MkdirAll(logDir(), 0700)
 }
 func loadSettings() {
+	today := dateOnly(time.Now())
+	selectedFrom, selectedTo = today, today
 	settings = appSettings{DataFolder: filepath.Join(appDir(), "Data"), Business: core.DefaultBusinessSettings()}
 	b, e := os.ReadFile(settingsPath())
 	if e == nil {
@@ -1965,8 +2161,8 @@ func dashboardBindingsFromCurl(c credentials) (map[string]runtimeBinding, error)
 	payHeaders["Cache-Control"] = "no-cache"
 	payHeaders["Pragma"] = "no-cache"
 
-	// Stable V1.3 uses one Dashboard session and two internal requests:
-	// current picking JSON plus previous-day..today payroll export XLSX.
+	// One Dashboard session drives current picking plus a selectable payroll date range.
+	// The payroll binding is expanded only for missing local-cache ranges.
 	active := runtimeBinding{
 		Method: "POST",
 		URL: origin + "/api/v1/performance/picking",
@@ -1976,7 +2172,7 @@ func dashboardBindingsFromCurl(c credentials) (map[string]runtimeBinding, error)
 	}
 	payroll := runtimeBinding{
 		Method: "GET",
-		URL: origin + "/api/v1/payroll/export?keywords=&WarehouseCode=HY1&Employee=&JobType=&ToDate={{TODAY_ISO}}&FromDate={{YESTERDAY_ISO}}",
+		URL: origin + "/api/v1/payroll/export?keywords=&WarehouseCode=HY1&Employee=&JobType=&ToDate={{TO_DATE_ISO}}&FromDate={{FROM_DATE_ISO}}",
 		Headers: payHeaders,
 		ResponseKind: "xlsx",
 	}
