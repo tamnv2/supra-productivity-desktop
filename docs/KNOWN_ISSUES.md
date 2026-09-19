@@ -11,8 +11,9 @@ Updated: 2026-09-19
 - **Status:** local core tests/cross-build passed; owner validation of the GitHub-built artifact is still required.
 
 ### Private live-data bindings
-- Public source can import/protect the cURL session but intentionally does not publish all production Active-Picking and Payroll/Productivity endpoint templates.
-- **Status:** local encrypted runtime-profile provisioning is the next implementation step.
+- Public source now imports and DPAPI-protects a local runtime profile without publishing production endpoint templates.
+- Full live request execution/response parsing is not yet wired to the profile.
+- **Status:** provisioning complete; live binding open.
 
 ### GitHub Actions verification
 - Windows build/release workflows are committed.
@@ -20,9 +21,10 @@ Updated: 2026-09-19
 - **Status:** trigger through a normal external push or manual Actions dispatch and verify artifact/logs.
 
 ### GitHub updater
-- Current public source checks the latest stable release and can open the Release page.
-- Automatic staged install, SHA256 verification, rollback, and manual/offline package install remain incomplete.
-- **Status:** open.
+- Public source now downloads the stable release EXE/checksum, verifies SHA256, backs up the current EXE, stages replacement after exit, and restarts.
+- Replacement failure attempts to restore the backup.
+- Manual/offline package selection and startup-health rollback remain incomplete.
+- **Status:** partially implemented.
 
 ### UI / functional parity
 - Full process/system CPU telemetry still needs parity work.
