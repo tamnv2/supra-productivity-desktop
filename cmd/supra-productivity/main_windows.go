@@ -1436,7 +1436,7 @@ type releaseInfo struct {
 
 func latestRelease() (releaseInfo, error) {
 	var out releaseInfo
-	req, _ := http.NewRequest("GET", "https://api.github.com/repos/"+updateRepo"/releases/latest", nil)
+	req, _ := http.NewRequest("GET", "https://api.github.com/repos/"+updateRepo+"/releases/latest", nil)
 	req.Header.Set("User-Agent", "SupraProductivity/"+appVersion)
 	c := http.Client{Timeout: 8 * time.Second}
 	resp, e := c.Do(req)
