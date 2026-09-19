@@ -5,9 +5,9 @@
   "repository": "tamnv2/supra-productivity-desktop",
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
-  "current_version": "v1.3.1-test.2",
-  "current_phase": "owner-runtime-verification",
-  "current_status": "github_prerelease_test2_published_owner_retest_pending",
+  "current_version": "v1.3.2-test.1",
+  "current_phase": "stable-v13-rebaseline",
+  "current_status": "recovered_v13_baseline_candidate_test1_requested",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -63,19 +63,24 @@
     "Refreshed neutral professional shell styling with dark header, light workspace, Windows Explorer-themed controls and status-aware header text.",
     "Project State Guard passed for v1.3.1-test.2 request commit (run 35416300901).",
     "Build Windows Portable passed for v1.3.1-test.2 request commit (run 35416300869).",
-    "Owner-test prerelease v1.3.1-test.2 published successfully (run 35416300861)."
+    "Owner-test prerelease v1.3.1-test.2 published successfully (run 35416300861).",
+    "Analyzed owner-provided SUPRA_PRODUCTIVITY_V1.3_TEST_FULL_SOURCE.zip and treated recovered V1.3 executable behavior as the new baseline authority.",
+    "Restored recovered V1.3 business defaults and calculations including shift rules, per-DO SKU deduction, minute-based productivity speed, 1921 site filter and 1C1L calculation.",
+    "Restored V1.3 payroll/active parsing shape while retaining public-safe runtime-profile endpoint binding and DPAPI session storage.",
+    "Rebased the desktop shell from the pre-test.2 left-navigation implementation and retained non-blocking local logging.",
+    "Extended GitHub updater so prerelease test builds can discover and securely stage newer test releases with SHA256 verification, backup and restore-on-replacement-failure."
   ],
-  "current_task": "Owner retest v1.3.1-test.2 on the company laptop after the test.1 responsiveness/UI rejection.",
-  "next_action": "Download and retest v1.3.1-test.2. Verify no Not Responding during startup/navigation, full-size/minimize-only behavior, bottom navigation/content layout, PDA sync, restricted Office sync, and long-running CPU/RAM/log stability.",
+  "current_task": "Build and verify the desktop app from the recovered stable V1.3 source behavior, then prove GitHub self-update using a test.1 -> test.2 candidate pair.",
+  "next_action": "Run PR CI for v1.3.2-test.1. If all guards/tests/vet/Windows build pass, merge and publish test.1; then publish identical-source v1.3.2-test.2 so the owner can verify in-app GitHub update from test.1 to test.2.",
   "blockers": [
-    "Owner runtime retest of v1.3.1-test.2 is required before any stable release.",
-    "Real target-laptop verification remains required for network and long-running CPU/RAM stability."
+    "GitHub PR CI/build must pass for the recovered V1.3 rebaseline.",
+    "Owner target-laptop runtime verification is required before any stable release.",
+    "The real updater replacement path must be verified by running v1.3.2-test.1 and updating to v1.3.2-test.2."
   ],
   "known_issues": [
-    "v1.3.1-test.1 rejected by owner: Windows reported Not Responding and UI/layout was not acceptable.",
-    "Runtime logging previously performed synchronous filesystem work from UI paths; changed to non-blocking local logging in test.2 and requires target-laptop verification.",
-    "Full functional parity remains under owner verification.",
-    "Manual/offline updater picker and startup-health rollback remain hardening items."
+    "The uploaded ZIP is a recovered/decompiled V1.3 source reconstruction rather than the original authoring repository; business behavior is reconstructed from the stable executable evidence.",
+    "Private production endpoint/proxy values recovered from the EXE are intentionally not committed to the public repository; runtime profile remains the binding mechanism.",
+    "Target-laptop PDA/Office network behavior and long-running CPU/RAM stability still require owner verification."
   ],
   "test_status": {
     "v1.1": "superseded",
@@ -91,7 +96,9 @@
     "v1.3.1-test.1": "owner_rejected_not_accepted",
     "candidate_publish_workflow": "passed_run_35416300861",
     "main_build_after_candidate_request": "passed_run_35416300869",
-    "v1.3.1-test.2": "github_prerelease_published_owner_test_pending"
+    "v1.3.1-test.2": "superseded_by_owner_v13_rebaseline_request",
+    "v1.3.2-test.1": "pr_ci_pending",
+    "v1.3.2-test.2": "planned_updater_verification_target"
   },
   "security": {
     "public_repo": true,
@@ -132,10 +139,10 @@
     "stable_release": "pending_owner_acceptance",
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
-    "candidate_release": "v1.3.1-test.2",
-    "candidate_release_status": "published_prerelease",
-    "candidate_publish_run_id": 35416300861,
-    "main_build_run_id": 35416300869
+    "candidate_release": "v1.3.2-test.1",
+    "candidate_release_status": "requested_pr_ci_pending",
+    "candidate_publish_run_id": null,
+    "main_build_run_id": null
   },
   "update_pipeline": {
     "latest_stable_release_check": "implemented",
@@ -146,7 +153,9 @@
     "replace_failure_restore": "implemented",
     "github_unavailable_is_non_fatal": true,
     "manual_offline_package": "pending",
-    "startup_health_rollback": "pending"
+    "startup_health_rollback": "pending",
+    "prerelease_channel_check": "implemented",
+    "test_pair_verification": "planned_v1.3.2-test.1_to_v1.3.2-test.2"
   },
   "runtime_profile": {
     "public_schema": "documented",
