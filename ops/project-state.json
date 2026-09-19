@@ -5,9 +5,9 @@
   "repository": "tamnv2/supra-productivity-desktop",
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
-  "current_version": "v1.3.2-test.7",
-  "current_phase": "native-recap-smart-cache-candidate",
-  "current_status": "v1.3.2-test.8 implementation complete; PR CI pending",
+  "current_version": "v1.3.2-test.8",
+  "current_phase": "owner-live-recap-cache-verification",
+  "current_status": "v1.3.2-test.8 published; PR/main/release automation passed; owner runtime parity test pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -96,14 +96,21 @@
     "Merged single-Dashboard Excel productivity pipeline to main at 5c8d79cb720dac7f5983c15fec05d5c4912e2a2c.",
     "Main Project State Guard run 35426934084 passed.",
     "Main Windows Portable build run 35426934063 passed.",
-    "Published v1.3.2-test.7 successfully via run 35426934057."
+    "Published v1.3.2-test.7 successfully via run 35426934057.",
+    "PR #9 native Recap/smart-cache candidate passed Project State Guard run 35440770198 and Windows Portable run 35440770194.",
+    "Merged test.8 implementation to main at f1c6e0c326c426f7313bf157d3c77f6ad2d1bf64.",
+    "Main Project State Guard run 35442973560 passed.",
+    "Main Windows Portable build run 35442973548 passed.",
+    "Published v1.3.2-test.8 successfully via Publish Owner Test Candidate run 35442973570 with EXE, SHA256SUMS and ZIP assets."
   ],
-  "current_task": "Validate and publish native Recap/report date range plus smart per-day payroll cache.",
-  "next_action": "Open PR for test.8, require State Guard + Windows Portable CI PASS, merge, verify main build/publish workflow, then Owner tests report parity and missing-range download on target laptop.",
-  "blockers": [],
+  "current_task": "Owner verifies native Recap/% chẵn lẻ/NSLD Pick/NSLD Pack parity and smart missing-date cache behavior on target laptop.",
+  "next_action": "Owner runs v1.3.2-test.8, verifies today default, partial-cache date-range sync only downloads missing historical ranges while today refreshes, compares four native report views with the reference workbook, and confirms Pick/Pack/Phân ca use selected end date only.",
+  "blockers": [
+    "Target-laptop live verification is required because CI cannot access the private Dashboard response or validate production workbook parity against live company rows."
+  ],
   "known_issues": [
     "test.6 same-cURL split regression is fixed in test.7.",
-    "test.7 derives the correct picking JSON and payroll XLSX requests from one session; live private-response verification remains pending."
+    "test.8 native report formulas and smart-cache planning passed automated tests; live Dashboard/report parity remains owner-verification pending."
   ],
   "test_status": {
     "v1.1": "superseded",
@@ -128,7 +135,7 @@
     "v1.3.2-test.5": "runtime_stability_pass_sync_source_setup_missing",
     "v1.3.2-test.6": "owner_rejected_same_source_split_and_empty_production",
     "v1.3.2-test.7": "published_owner_runtime_output_pending",
-    "v1.3.2-test.8": "branch_ci_pending"
+    "v1.3.2-test.8": "published_ci_pass_owner_recap_cache_parity_pending"
   },
   "security": {
     "public_repo": true,
@@ -170,12 +177,12 @@
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
     "candidate_release": "v1.3.2-test.8",
-    "candidate_release_status": "branch_ci_pending",
-    "candidate_publish_run_id": 35426934057,
-    "main_build_run_id": 35426934063,
-    "pr_ci_state_guard_run_id": 35426884976,
-    "pr_ci_windows_build_run_id": 35426884987,
-    "main_state_guard_run_id": 35426934084,
+    "candidate_release_status": "published_prerelease_owner_runtime_pending",
+    "candidate_publish_run_id": 35442973570,
+    "main_build_run_id": 35442973548,
+    "pr_ci_state_guard_run_id": 35440770198,
+    "pr_ci_windows_build_run_id": 35440770194,
+    "main_state_guard_run_id": 35442973560,
     "previous_candidate_release": "v1.3.2-test.7"
   },
   "update_pipeline": {
