@@ -115,3 +115,23 @@ func TestBuildPeopleTableDeduplicatesUsers(t *testing.T) {
 	table := BuildPeopleTable(payroll)
 	if len(table.Rows) != 1 { t.Fatalf("rows=%d", len(table.Rows)) }
 }
+
+
+func TestExpandBindingRelativeDates(t *testing.T) {
+	now := time.Date(2026, 9, 19, 8, 30, 0, 0, time.Local)
+	b := Binding{
+		URL: "https://example.invalid/report?from={{YESTERDAY_ISO}}&to={{TODAY_ISO}}",
+		Body: "next={{TOMORROW_DMY}}",
+		Headers: map[string]string{"X-Date": "{{TODAY_DMY}}"},
+	}
+	got := ExpandBinding(b, now)
+	if got.URL != "https://example.invalid/report?from=2026-09-18&to=2026-09-19" {
+		t.Fatalf("url=%q", got.URL)
+	}
+	if got.Body != "next=20/09/2026" {
+		t.Fatalf("body=%q", got.Body)
+	}
+	if got.Headers["X-Date"] != "19/09/2026" {
+		t.Fatalf("header=%q", got.Headers["X-Date"])
+	}
+}

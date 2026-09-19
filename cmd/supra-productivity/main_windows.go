@@ -143,6 +143,8 @@ const (
 	ID_CURL_IMPORT     = 300
 	ID_SECRET_TOGGLE   = 301
 	ID_NET_TEST        = 302
+	ID_SOURCE_KIND     = 303
+	ID_SOURCE_CLEAR    = 304
 	ID_LOG_OPEN        = 400
 	ID_LOG_EXPORT      = 401
 	ID_ACTIVE_STATUS   = 500
@@ -352,6 +354,7 @@ var (
 	pendingStatus                                                                                     string
 	statusMu                                                                                          sync.Mutex
 	activeCombo, pickShiftCombo, packShiftCombo, shiftManualCombo                                     uintptr
+	settingsSourceCombo                                                                               uintptr
 	syncButton, updateButton                                                                            uintptr
 	navOrder                                                                                             = []int{ID_NAV_OVERVIEW, ID_NAV_ACTIVE, ID_NAV_PICK, ID_NAV_PACK, ID_NAV_SHIFT, ID_NAV_USERPDA, ID_NAV_LOG, ID_NAV_SETTINGS}
 	navLabels                                                                                            = map[int]string{ID_NAV_OVERVIEW: "TỔNG QUAN", ID_NAV_ACTIVE: "ĐANG LẤY HÀNG", ID_NAV_PICK: "PICK", ID_NAV_PACK: "PACK", ID_NAV_SHIFT: "PHÂN CA", ID_NAV_USERPDA: "USER / PDA", ID_NAV_LOG: "LOG", ID_NAV_SETTINGS: "THIẾT LẬP"}
@@ -501,6 +504,7 @@ func destroyPage() {
 	pickShiftCombo = 0
 	packShiftCombo = 0
 	shiftManualCombo = 0
+	settingsSourceCombo = 0
 	overviewMetric = 0
 	currentTableTop = 170
 	currentLogTop = 170
@@ -1012,30 +1016,33 @@ func renderLog() {
 }
 
 func renderSettings() {
-	pageTitle("THIẾT LẬP", "Quản lý phiên Dashboard và kiểm tra kết nối.")
+	pageTitle("THIẾT LẬP", "Thiết lập nguồn dữ liệu và phiên Dashboard một lần; sau đó chỉ cần bấm Đồng bộ.")
 	w, _ := clientSize()
 	leftW := (w - 72) * 3 / 5
-	if leftW < 680 { leftW = 680 }
+	if leftW < 720 { leftW = 720 }
 	rightX := 48 + leftW
 	rightW := w - rightX - 24
 	if rightW < 420 { rightW = 420 }
 
-	groupBox("PHIÊN DASHBOARD", 24, 124, leftW, 300)
-	static("Dán cURL (bash)", 46, 154, 180, 22, true)
-	static("Dán lệnh cURL của Dashboard vào ô dưới, sau đó bấm Nhận cấu hình.", 46, 180, leftW-44, 22, false)
-	settingsCurl = create("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL, 46, 214, leftW-44, 126, mainWnd, 0)
+	groupBox("NGUỒN DỮ LIỆU", 24, 124, leftW, 360)
+	static("Nguồn", 46, 156, 70, 22, true)
+	settingsSourceCombo = combo(ID_SOURCE_KIND, []string{"Sản lượng", "Đang lấy hàng"}, "Sản lượng", 122, 148, 180, 180)
+	static("Chọn đúng nguồn rồi dán cURL (bash) lấy từ Dashboard. App tự lưu cấu hình cục bộ và mã hóa theo Windows user.", 46, 188, leftW-44, 42, false)
+	settingsCurl = create("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL, 46, 238, leftW-44, 132, mainWnd, 0)
 	setFont(settingsCurl, fontNormal)
 	addPage(settingsCurl)
-	button(ID_CURL_IMPORT, "NHẬN CẤU HÌNH", 46, 354, 160, 34)
-	button(ID_SECRET_TOGGLE, "HIỆN / ẨN", 220, 354, 120, 34)
-	button(ID_NET_TEST, "KIỂM TRA KẾT NỐI", 354, 354, 176, 34)
+	button(ID_CURL_IMPORT, "LƯU NGUỒN", 46, 386, 142, 34)
+	button(ID_NET_TEST, "KIỂM TRA NGUỒN", 202, 386, 164, 34)
+	button(ID_SOURCE_CLEAR, "XOÁ NGUỒN ĐANG CHỌN", 380, 386, 210, 34)
 
-	groupBox("TRẠNG THÁI PHIÊN", rightX, 124, rightW, 300)
-	settingsSummary = static(credentialSummary(), rightX+24, 160, rightW-48, 150, false)
-	static("Thông tin nhạy cảm được che khi hiển thị và lưu cục bộ theo Windows user.", rightX+24, 328, rightW-48, 48, false)
+	groupBox("TRẠNG THÁI KẾT NỐI", rightX, 124, rightW, 360)
+	settingsSummary = static(credentialSummary(), rightX+24, 160, rightW-48, 210, false)
+	button(ID_SECRET_TOGGLE, "HIỆN / ẨN PHIÊN", rightX+24, 386, 156, 34)
+	static("Thông tin nhạy cảm và cấu hình nguồn chỉ lưu cục bộ bằng Windows DPAPI; không nằm trong bản phát hành public.", rightX+24, 434, rightW-48, 42, false)
 
-	groupBox("LƯU Ý", 24, 442, w-48, 92)
-	static("Thiết lập chỉ dành cho kết nối. Các tùy chọn nghiệp vụ được đặt ngay tại màn Pick, Pack và Phân ca.", 46, 476, w-92, 24, false)
+	groupBox("CÁCH DÙNG", 24, 504, w-48, 116)
+	static("1. Cấu hình Sản lượng.   2. Cấu hình Đang lấy hàng.   3. Kiểm tra từng nguồn.   4. Từ lần sau chỉ cần bấm ĐỒNG BỘ.", 46, 540, w-92, 24, true)
+	static("Nếu một nguồn tạm lỗi, ứng dụng vẫn giữ dữ liệu hợp lệ trước đó và tiếp tục xử lý nguồn còn hoạt động.", 46, 574, w-92, 24, false)
 }
 
 func filterActive(t core.Table, status string) core.Table {
@@ -1091,6 +1098,21 @@ func handleCommand(id, code int, source uintptr) {
 		go checkUpdateInteractive()
 	case ID_CURL_IMPORT:
 		importCurl()
+	case ID_SOURCE_CLEAR:
+		if busy.Load() {
+			setStatus("Đang đồng bộ; chờ hoàn tất trước khi xoá nguồn dữ liệu.")
+			return
+		}
+		name := sourceBindingName(comboText(settingsSourceCombo))
+		if name != "" {
+			if err := removeSource(name); err != nil {
+				setStatus("Không xoá được nguồn: " + err.Error())
+			} else {
+				setStatus("Đã xoá cấu hình nguồn " + sourceLabel(name) + ".")
+				setText(settingsSummary, credentialSummary())
+				logEvent("INFO", "SOURCE_REMOVED", "source", name)
+			}
+		}
 	case ID_SECRET_TOGGLE:
 		revealSecrets = !revealSecrets
 		setText(settingsSummary, credentialSummary())
@@ -1339,41 +1361,40 @@ func startSync() {
 		setStatus("Đang đồng bộ; không tạo thêm tác vụ chồng nhau.")
 		return
 	}
-	setStatus("Đang đồng bộ live…")
+	setStatus("Đang đồng bộ dữ liệu…")
 	logEvent("INFO", "SYNC_START")
 	go func() {
 		defer busy.Store(false)
 		defer pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0)
 		if !sessionReady() {
-			setStatus("Chưa có phiên Dashboard. Vào Thiết lập → dán cURL bash.")
+			setStatus("Chưa có phiên Dashboard. Vào Thiết lập để nhận cấu hình nguồn.")
 			logEvent("WARN", "SYNC_NO_CREDENTIAL")
 			return
 		}
-		if len(profile.Bindings) == 0 {
-			setStatus("Chưa có runtime profile live cục bộ.")
-			logEvent("WARN", "SYNC_PROFILE_MISSING")
-			return
-		}
+
 		payBinding, payOK := profileBinding("payroll-productivity")
 		activeBinding, activeOK := profileBinding("active-picking")
 		if !payOK && !activeOK {
-			setStatus("Runtime profile chưa có binding payroll-productivity / active-picking.")
-			logEvent("ERROR", "SYNC_BINDINGS_MISSING")
+			setStatus("Chưa thiết lập nguồn dữ liệu. Vào Thiết lập → chọn nguồn → dán cURL.")
+			logEvent("WARN", "SYNC_SOURCES_MISSING")
 			return
 		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
 		defer cancel()
 		ch := make(chan liveSyncResult, 2)
 		session := currentLiveSession()
 		pending := 0
+		missing := []string{}
 		if payOK {
 			pending++
 			go syncOne(ctx, "payroll-productivity", payBinding, session, ch)
-		}
+		} else { missing = append(missing, "Sản lượng") }
 		if activeOK {
 			pending++
 			go syncOne(ctx, "active-picking", activeBinding, session, ch)
-		}
+		} else { missing = append(missing, "Đang lấy hàng") }
+
 		success := 0
 		var errors []string
 		var payroll []core.PayrollRow
@@ -1382,9 +1403,9 @@ func startSync() {
 		for i := 0; i < pending; i++ {
 			r := <-ch
 			if r.err != nil {
-				errors = append(errors, r.name+": "+r.err.Error())
-				logEvent("ERROR", "SYNC_BINDING_FAILED",
-					"binding", r.name,
+				errors = append(errors, sourceLabel(r.name)+": "+r.err.Error())
+				logEvent("ERROR", "SYNC_SOURCE_FAILED",
+					"source", r.name,
 					"http_status", strconv.Itoa(r.meta.StatusCode),
 					"elapsed_ms", strconv.FormatInt(r.meta.Elapsed.Milliseconds(), 10),
 					"error", r.err.Error())
@@ -1392,8 +1413,8 @@ func startSync() {
 			}
 			success++
 			if route == "" { route = r.route }
-			logEvent("INFO", "SYNC_BINDING_OK",
-				"binding", r.name,
+			logEvent("INFO", "SYNC_SOURCE_OK",
+				"source", r.name,
 				"http_status", strconv.Itoa(r.meta.StatusCode),
 				"bytes", strconv.Itoa(r.meta.Bytes),
 				"elapsed_ms", strconv.FormatInt(r.meta.Elapsed.Milliseconds(), 10),
@@ -1405,9 +1426,10 @@ func startSync() {
 			liveMu.Lock()
 			live.LastError = strings.Join(errors, " | ")
 			liveMu.Unlock()
-			setStatus("Đồng bộ live lỗi; giữ nguyên dữ liệu hợp lệ trước đó.")
+			setStatus("Đồng bộ lỗi; dữ liệu hợp lệ trước đó vẫn được giữ nguyên.")
 			return
 		}
+
 		liveMu.Lock()
 		if len(payroll) > 0 {
 			p, pa, sh := core.BuildTables(payroll, settings.Business, time.Now())
@@ -1415,18 +1437,24 @@ func startSync() {
 			live.Pick, live.Pack, live.Shift = p, pa, sh
 			live.UserPDA = liveio.BuildPeopleTable(payroll)
 		}
-		if len(active.Headers) > 0 {
-			live.Active = active
-		}
+		if len(active.Headers) > 0 { live.Active = active }
 		live.LastSync = time.Now()
-		live.LastError = strings.Join(errors, " | ")
+		allIssues := append([]string{}, errors...)
+		if len(missing) > 0 { allIssues = append(allIssues, "Chưa cấu hình: "+strings.Join(missing, ", ")) }
+		live.LastError = strings.Join(allIssues, " | ")
 		live.Route = route
 		pickN, packN, activeN := len(live.Pick.Rows), len(live.Pack.Rows), len(live.Active.Rows)
 		liveMu.Unlock()
-		setStatus(fmt.Sprintf("Đồng bộ LIVE xong · Pick %d · Pack %d · Đang lấy %d", pickN, packN, activeN))
+
+		if len(allIssues) > 0 {
+			setStatus(fmt.Sprintf("Đồng bộ một phần · Pick %d · Pack %d · Đang lấy %d · %s", pickN, packN, activeN, strings.Join(allIssues, " | ")))
+		} else {
+			setStatus(fmt.Sprintf("Đồng bộ xong · Pick %d · Pack %d · Đang lấy %d", pickN, packN, activeN))
+		}
 		logEvent("INFO", "SYNC_DONE",
-			"success_bindings", strconv.Itoa(success),
-			"failed_bindings", strconv.Itoa(len(errors)),
+			"success_sources", strconv.Itoa(success),
+			"failed_sources", strconv.Itoa(len(errors)),
+			"missing_sources", strconv.Itoa(len(missing)),
 			"pick_rows", strconv.Itoa(pickN),
 			"pack_rows", strconv.Itoa(packN),
 			"active_rows", strconv.Itoa(activeN))
@@ -1517,24 +1545,57 @@ func parseCurl(raw string) (credentials, error) {
 	return c, nil
 }
 func importCurl() {
+	if busy.Load() {
+		setStatus("Đang đồng bộ; chờ hoàn tất trước khi thay đổi nguồn dữ liệu.")
+		return
+	}
 	raw := getText(settingsCurl)
-	c, e := parseCurl(raw)
+	selected := comboText(settingsSourceCombo)
+	bindingName := sourceBindingName(selected)
+	if bindingName == "" {
+		setStatus("Chọn nguồn dữ liệu trước khi nhận cấu hình.")
+		return
+	}
+	c, err := parseCurl(raw)
 	setText(settingsCurl, "")
-	if e != nil {
-		setStatus("Không nhận được cURL: " + e.Error())
-		logEvent("WARN", "CURL_IMPORT_FAILED", "error", e.Error())
+	if err != nil {
+		setStatus("Không nhận được cURL: " + err.Error())
+		logEvent("WARN", "CURL_IMPORT_FAILED", "source", bindingName, "error", err.Error())
 		return
 	}
-	creds = c
-	if e = saveCredentials(); e != nil {
-		setStatus("Không lưu được phiên: " + e.Error())
-		logEvent("ERROR", "CREDENTIAL_SAVE_FAILED", "error", e.Error())
+	b, err := bindingFromCurl(c, selected)
+	if err != nil {
+		setStatus("Không tạo được cấu hình nguồn: " + err.Error())
+		logEvent("WARN", "SOURCE_IMPORT_FAILED", "source", bindingName, "error", err.Error())
 		return
 	}
+
+	creds = mergeCredentials(creds, c)
+	if err = saveCredentials(); err != nil {
+		setStatus("Không lưu được phiên Dashboard: " + err.Error())
+		logEvent("ERROR", "CREDENTIAL_SAVE_FAILED", "error", err.Error())
+		return
+	}
+
+	if profile.SchemaVersion == 0 { profile.SchemaVersion = 1 }
+	if profile.ProfileID == "" { profile.ProfileID = "local-ui" }
+	if profile.Bindings == nil { profile.Bindings = map[string]runtimeBinding{} }
+	profile.Bindings[bindingName] = b
+	if err = saveRuntimeProfile(); err != nil {
+		setStatus("Không lưu được nguồn "+sourceLabel(bindingName)+": "+err.Error())
+		logEvent("ERROR", "SOURCE_SAVE_FAILED", "source", bindingName, "error", err.Error())
+		return
+	}
+
 	setText(settingsSummary, credentialSummary())
-	setStatus("Đã nhận cấu hình; cURL gốc đã xóa khỏi ô nhập.")
-	logEvent("INFO", "CURL_IMPORTED", "authorization_present", strconv.FormatBool(c.Authorization != ""), "signature_present", strconv.FormatBool(c.Signature != ""))
+	setStatus("Đã lưu nguồn "+sourceLabel(bindingName)+" và phiên Dashboard.")
+	logEvent("INFO", "SOURCE_CONFIGURED",
+		"source", bindingName,
+		"method", b.Method,
+		"authorization_present", strconv.FormatBool(creds.Authorization != ""),
+		"signature_present", strconv.FormatBool(creds.Signature != ""))
 }
+
 func mask(s string) string {
 	if s == "" {
 		return "—"
@@ -1549,8 +1610,13 @@ func mask(s string) string {
 	return string(r[:4]) + "••••••••" + string(r[len(r)-4:])
 }
 func credentialSummary() string {
-	return "Authorization/Token: " + mask(firstNonEmpty(creds.Token, creds.Authorization)) + "\r\nAPISID: " + mask(creds.APISID) + "    USID: " + mask(creds.USID) + "\r\nx-signature: " + mask(creds.Signature) + "    nonce: " + mask(creds.Nonce) + "\r\nRequest URL: " + map[bool]string{true: "Đã nhận", false: "Chưa có"}[creds.URL != ""]
+	return "Phiên Dashboard: " + map[bool]string{true: "Đã nhận", false: "Chưa có"}[sessionReady()] +
+		"\r\nAuthorization/Token: " + mask(firstNonEmpty(creds.Token, creds.Authorization)) +
+		"\r\nAPISID: " + mask(creds.APISID) + "    USID: " + mask(creds.USID) +
+		"\r\nx-signature: " + mask(creds.Signature) + "    nonce: " + mask(creds.Nonce) +
+		"\r\n" + sourceSummary()
 }
+
 func firstNonEmpty(v ...string) string {
 	for _, s := range v {
 		if strings.TrimSpace(s) != "" {
@@ -1599,21 +1665,35 @@ func requestProbe(c credentials) error {
 	return nil
 }
 func networkTest() {
-	if creds.URL == "" {
-		setStatus("Chưa có cURL để kiểm tra.")
+	selected := comboText(settingsSourceCombo)
+	name := sourceBindingName(selected)
+	if name == "" {
+		setStatus("Chọn nguồn dữ liệu cần kiểm tra.")
 		return
 	}
-	setStatus("Đang kiểm tra kết nối…")
+	b, ok := profileBinding(name)
+	if !ok {
+		setStatus("Nguồn "+sourceLabel(name)+" chưa được thiết lập.")
+		return
+	}
+	if !sessionReady() {
+		setStatus("Chưa có phiên Dashboard.")
+		return
+	}
+	setStatus("Đang kiểm tra nguồn "+sourceLabel(name)+"…")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
 	start := time.Now()
-	e := requestProbe(creds)
-	if e != nil {
-		setStatus("Kiểm tra lỗi: " + e.Error())
-		logEvent("WARN", "NETWORK_TEST_FAILED", "elapsed_ms", strconv.FormatInt(time.Since(start).Milliseconds(), 10), "error", e.Error())
+	_, meta, route, err := executeWithFallback(ctx, liveio.ExpandBinding(b, time.Now()), currentLiveSession())
+	if err != nil {
+		setStatus("Kiểm tra "+sourceLabel(name)+" lỗi: "+err.Error())
+		logEvent("WARN", "SOURCE_TEST_FAILED", "source", name, "elapsed_ms", strconv.FormatInt(time.Since(start).Milliseconds(), 10), "error", err.Error())
 		return
 	}
-	setStatus("Kết nối phiên hoạt động.")
-	logEvent("INFO", "NETWORK_TEST_OK", "elapsed_ms", strconv.FormatInt(time.Since(start).Milliseconds(), 10))
+	setStatus("Nguồn "+sourceLabel(name)+" hoạt động · "+route)
+	logEvent("INFO", "SOURCE_TEST_OK", "source", name, "http_status", strconv.Itoa(meta.StatusCode), "elapsed_ms", strconv.FormatInt(meta.Elapsed.Milliseconds(), 10), "route", route)
 }
+
 func isSensitiveHeader(k string) bool {
 	n := strings.ToLower(k)
 	return strings.Contains(n, "token") || strings.Contains(n, "authorization") || strings.Contains(n, "cookie") || strings.Contains(n, "signature") || n == "apisid" || n == "usid" || strings.Contains(n, "password")
@@ -1710,6 +1790,135 @@ func loadCredentials() {
 }
 
 func runtimeProfilePath() string { return filepath.Join(secureDir(), "runtime-profile.dat") }
+
+func saveRuntimeProfile() error {
+	ensureDirs()
+	if profile.SchemaVersion == 0 { profile.SchemaVersion = 1 }
+	if profile.ProfileID == "" { profile.ProfileID = "local-ui" }
+	if profile.Bindings == nil { profile.Bindings = map[string]runtimeBinding{} }
+	if err := validateRuntimeProfile(profile); err != nil { return err }
+	plain, err := json.Marshal(profile)
+	if err != nil { return err }
+	enc, err := protect(plain)
+	if err != nil { return err }
+	return os.WriteFile(runtimeProfilePath(), []byte(base64.StdEncoding.EncodeToString(enc)), 0600)
+}
+
+func sourceBindingName(label string) string {
+	switch strings.ToLower(strings.TrimSpace(label)) {
+	case "sản lượng", "san luong", "payroll", "payroll/productivity":
+		return "payroll-productivity"
+	case "đang lấy hàng", "dang lay hang", "active", "active picking":
+		return "active-picking"
+	default:
+		return ""
+	}
+}
+
+func sourceLabel(binding string) string {
+	switch strings.ToLower(strings.TrimSpace(binding)) {
+	case "payroll-productivity":
+		return "Sản lượng"
+	case "active-picking":
+		return "Đang lấy hàng"
+	default:
+		return binding
+	}
+}
+
+func sourceConfigured(name string) bool {
+	_, ok := profileBinding(name)
+	return ok
+}
+
+func sourceSummary() string {
+	pay := "Chưa thiết lập"
+	if sourceConfigured("payroll-productivity") { pay = "Đã thiết lập" }
+	active := "Chưa thiết lập"
+	if sourceConfigured("active-picking") { active = "Đã thiết lập" }
+	return "Nguồn Sản lượng: " + pay + "\r\nNguồn Đang lấy hàng: " + active
+}
+
+func mergeCredentials(old, next credentials) credentials {
+	out := old
+	set := func(dst *string, v string) { if strings.TrimSpace(v) != "" { *dst = v } }
+	set(&out.URL, next.URL)
+	set(&out.Method, next.Method)
+	set(&out.Authorization, next.Authorization)
+	set(&out.Token, next.Token)
+	set(&out.APISID, next.APISID)
+	set(&out.USID, next.USID)
+	set(&out.Signature, next.Signature)
+	set(&out.Nonce, next.Nonce)
+	set(&out.Body, next.Body)
+	set(&out.UserAgent, next.UserAgent)
+	set(&out.ImportedAt, next.ImportedAt)
+	if out.OtherHeaders == nil { out.OtherHeaders = map[string]string{} }
+	for k, v := range next.OtherHeaders {
+		if strings.TrimSpace(k) != "" && strings.TrimSpace(v) != "" { out.OtherHeaders[k] = v }
+	}
+	return out
+}
+
+func localHeaderSensitive(k string) bool {
+	n := strings.ToLower(strings.TrimSpace(k))
+	return n == "authorization" || n == "cookie" || n == "token" ||
+		n == "apisid" || n == "usid" || strings.Contains(n, "signature") ||
+		strings.Contains(n, "password")
+}
+
+func templatizeRequestDates(raw string, now time.Time) string {
+	if raw == "" { return raw }
+	today := now
+	tomorrow := now.AddDate(0, 0, 1)
+	yesterday := now.AddDate(0, 0, -1)
+	repl := []struct{ old, next string }{
+		{today.Format("2006-01-02"), "{{TODAY_ISO}}"},
+		{tomorrow.Format("2006-01-02"), "{{TOMORROW_ISO}}"},
+		{yesterday.Format("2006-01-02"), "{{YESTERDAY_ISO}}"},
+		{today.Format("02/01/2006"), "{{TODAY_DMY}}"},
+		{tomorrow.Format("02/01/2006"), "{{TOMORROW_DMY}}"},
+		{yesterday.Format("02/01/2006"), "{{YESTERDAY_DMY}}"},
+	}
+	out := raw
+	for _, r := range repl { out = strings.ReplaceAll(out, r.old, r.next) }
+	return out
+}
+
+func bindingFromCurl(c credentials, source string) (runtimeBinding, error) {
+	name := sourceBindingName(source)
+	if name == "" { return runtimeBinding{}, fmt.Errorf("chưa chọn nguồn dữ liệu") }
+	headers := map[string]string{}
+	for k, v := range c.OtherHeaders {
+		if strings.TrimSpace(k) == "" || localHeaderSensitive(k) { continue }
+		headers[k] = v
+	}
+	now := time.Now()
+	for k, v := range headers { headers[k] = templatizeRequestDates(v, now) }
+	b := runtimeBinding{
+		Method: c.Method,
+		URL: templatizeRequestDates(c.URL, now),
+		Body: templatizeRequestDates(c.Body, now),
+		Headers: headers,
+	}
+	if b.Method == "" { b.Method = "GET" }
+	if name == "payroll-productivity" { b.ResponseKind = "xlsx" } else { b.ResponseKind = "json" }
+	if _, err := url.ParseRequestURI(strings.TrimSpace(b.URL)); err != nil {
+		return runtimeBinding{}, fmt.Errorf("URL nguồn không hợp lệ")
+	}
+	return b, nil
+}
+
+func removeSource(name string) error {
+	if profile.Bindings == nil { profile.Bindings = map[string]runtimeBinding{} }
+	delete(profile.Bindings, name)
+	if len(profile.Bindings) == 0 {
+		_ = os.Remove(runtimeProfilePath())
+		profile = runtimeProfile{SchemaVersion: 1, ProfileID: "local-ui", Bindings: map[string]runtimeBinding{}}
+		return nil
+	}
+	return saveRuntimeProfile()
+}
 func runtimeProfileProvisionPath() string {
 	exe, e := os.Executable()
 	if e != nil {
@@ -1768,7 +1977,7 @@ func provisionRuntimeProfile() {
 		return
 	}
 	_ = os.Remove(path)
-	logEvent("INFO", "RUNTIME_PROFILE_IMPORTED", "profile_id", sanitizeProfileID(p.ProfileID), "binding_count", strconv.Itoa(len(p.Bindings)))
+	logEvent("INFO", "LEGACY_SOURCE_PROFILE_IMPORTED", "profile_id", sanitizeProfileID(p.ProfileID), "binding_count", strconv.Itoa(len(p.Bindings)))
 }
 func loadRuntimeProfile() {
 	profile = runtimeProfile{}

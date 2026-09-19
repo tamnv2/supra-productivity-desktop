@@ -1,66 +1,99 @@
-# PRIVATE RUNTIME PROFILE
+# LOCAL LIVE SOURCE CONFIGURATION
 
-The repository is public, so private operational endpoint bindings are deliberately excluded from source control.
+Updated: 2026-09-19
 
-## Purpose
+The repository is public. Production endpoint URLs, request bodies, credentials, tokens and company data must never be committed to GitHub.
 
-A GitHub-built public executable receives site-specific live-data bindings locally without publishing them in source code, Git history, Actions logs, Release notes, or public artifacts.
+## Owner workflow
 
-## Implemented provisioning foundation
+A separate runtime-profile file is **no longer required** for normal operation.
 
-The application now supports a local provisioning file named:
+The application exposes two business data sources in **Thiết lập**:
 
-`SupraProductivity.profile.json`
+1. **Sản lượng**
+   - source used for Payroll/Productivity;
+   - parsed into User/PDA;
+   - processed into Phân ca;
+   - processed into Pick and Pack.
 
-Place it beside `SupraProductivity.exe`.
+2. **Đang lấy hàng**
+   - source used for Active Picking;
+   - parsed into the live progress/status table.
 
-On startup the app:
+For each source, the Owner performs the setup once:
 
-1. detects the provisioning file;
-2. validates `schema_version = 1` and the request bindings;
-3. encrypts the profile with Windows DPAPI for the current Windows user;
-4. stores the encrypted profile under the local secure application directory;
-5. removes the plaintext provisioning file after successful import where possible;
-6. logs only the sanitized profile ID and binding count — never URLs or credentials.
+1. choose the source in the application;
+2. paste the matching Dashboard cURL (bash);
+3. click **LƯU NGUỒN**;
+4. click **KIỂM TRA NGUỒN**.
 
-A synthetic example is available at:
+The application then:
+- extracts URL, HTTP method, body and non-sensitive request headers;
+- extracts Dashboard session values separately;
+- removes the raw cURL from the edit box;
+- protects the session and source configuration with Windows DPAPI for the current Windows user;
+- keeps the source configuration outside the public repository and release artifact.
 
-`samples/public/runtime-profile.example.json`
+After both sources are configured, normal operation only requires **ĐỒNG BỘ**.
 
-## Two local layers
+## Session refresh
 
-### Session credentials
-- user pastes Copy-as-cURL (bash);
-- token/cookie/signature values are extracted locally;
-- sensitive fields are masked by default;
-- values are persisted with Windows DPAPI.
+Dashboard credentials may expire before the saved request shape changes.
 
-### Runtime operational profile
-- contains private request templates/bindings for operational data sources;
-- is provisioned locally;
-- is DPAPI-protected;
-- is never committed to the public repository.
+Pasting a fresh cURL for either configured source:
+- refreshes non-empty session values;
+- refreshes that source request definition;
+- preserves the other configured source.
 
-## Public schema
+## Daily request dates
 
-The public code may know generic binding names such as:
+When a saved cURL contains the current, previous or next calendar date, the application converts those values into local templates:
+- `{{YESTERDAY_ISO}}`, `{{TODAY_ISO}}`, `{{TOMORROW_ISO}}`;
+- `{{YESTERDAY_DMY}}`, `{{TODAY_DMY}}`, `{{TOMORROW_DMY}}`.
 
-- `active-picking`
-- `payroll-productivity`
+The values are expanded at synchronization time so a request captured today does not stay pinned to an old date tomorrow.
 
-but production hosts, paths, payload templates, tokens, cookies, and signatures must remain private.
+## Synchronization pipeline
 
-## Next implementation step
+### Sản lượng
+Dashboard request
+→ XLSX response
+→ header/field detection
+→ completed-work rows
+→ User/PDA
+→ automatic/manual shift resolution
+→ within-shift/overtime split
+→ even/odd aggregation
+→ Pick / Pack / Phân ca tables.
 
-The profile import/storage layer is implemented. The remaining work is to bind those locally provisioned requests to the live parsers/engines for:
+### Đang lấy hàng
+Dashboard request
+→ JSON response
+→ Active Picking field mapping
+→ status/warning/progress/time/device fields
+→ Đang lấy hàng table.
 
-- Active Picking;
-- Payroll/Productivity → Pick/Pack/Shift/User-PDA as applicable.
+## Partial failure behavior
 
-## Office / PDA
+The two sources are independent.
 
-The runtime profile is independent of GitHub. Once provisioned, core operations must continue when GitHub/public Internet is blocked but the internal services remain reachable.
+If one source fails:
+- the successful source is still processed;
+- the last valid data from the failed source is retained;
+- status/log identifies the missing/failed business source;
+- the app does not clear valid data only because another source failed.
 
-## Security rule
+## Security
 
-Never attach a real runtime profile to a public GitHub issue, commit, release, Action artifact, or public diagnostic package.
+The local encrypted source/session files may contain operational request information and must not be uploaded to:
+- public GitHub issues;
+- commits;
+- releases;
+- Actions artifacts;
+- public diagnostics.
+
+The exported application Log remains sanitized and does not include raw endpoint URLs or credentials.
+
+## Legacy compatibility
+
+The old `SupraProductivity.profile.json` import path remains only as backward compatibility for existing local installations. New Owner setup must use the in-app source configuration workflow.

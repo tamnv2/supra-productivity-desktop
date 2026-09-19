@@ -122,3 +122,17 @@ Status: private test build; owner acceptance pending.
 - Removed internal/repository wording from the operator-facing settings screen.
 - Standardized spacing, typography and button sizing.
 
+## 2026-09-19 — test.6 in-app live source setup
+
+- Removed the separate runtime-profile file from the normal Owner workflow.
+- Added **Sản lượng** and **Đang lấy hàng** source selection in Thiết lập.
+- Added one-time cURL capture per source.
+- Source request shape and Dashboard session are stored locally with Windows DPAPI.
+- Added source-specific **KIỂM TRA NGUỒN** and **XOÁ NGUỒN ĐANG CHỌN** actions.
+- Refreshing one source cURL updates session values without deleting the other source.
+- Converted captured yesterday/today/tomorrow dates into runtime request templates.
+- Đồng bộ can run with one or both configured sources.
+- Partial sync keeps previous valid snapshots and reports missing/failed sources by business name.
+- Removed operator-facing “runtime profile/binding” wording from the normal sync flow.
+- Prevented source changes while a synchronization task is running.
+
