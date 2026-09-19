@@ -110,3 +110,16 @@ Canonical record of explicit owner decisions. Newest explicit owner instruction 
 - Site 1291 is the normal 1291 filter; the accidental 1921 condition in reconstructed code is invalid for this application.
 - Existing test.6 local configuration must migrate automatically when possible, without forcing Owner to paste the same cURL again.
 
+
+## 2026-09-19 — native Recap, manual sync and smart date cache
+
+- Production/report date selection defaults to **today** on application start.
+- Owner can select **Từ ngày / Đến ngày** for production download and report display.
+- Business-data synchronization is **manual only** through the **ĐỒNG BỘ** button; no 15/30/45/60-minute production auto-sync is retained.
+- The former Google-Sheet Recap flow is replaced by a native **BÁO CÁO** tab in the EXE. Google Sheets is not a runtime dependency for Recap.
+- Native report views must reproduce the current Dashboard Recap workbook logic for **Recap**, **% chẵn lẻ**, **NSLD Pick**, and **NSLD Pack**.
+- Historical payroll/productivity data is cached locally by business date. Manual sync downloads only missing date ranges; already-cached historical days are not downloaded again blindly.
+- The current day is refreshed whenever manual sync is pressed, even when a current-day cache already exists.
+- A successfully downloaded historical day with zero rows is still recorded as cached so it is not fetched repeatedly.
+- For a multi-day selection, reports use the full selected range. Operational **Pick / Pack / Phân ca** use the selected **Đến ngày** only, preventing multi-day target aggregation into one operational day.
+- Pick Auto PP classification preserves the workbook's first-match VLOOKUP behavior by mapping Pick reference to the first matching Pack reference and checking whether that Pack user is `robotics`.
