@@ -32,7 +32,7 @@ func TestManualShiftWins(t *testing.T) {
 	b.ManualShifts[ManualShiftKey("u1", "Pick")] = "Ca 2"
 	rows := []PayrollRow{{
 		Job: "Pick", EvenOdd: "Chẵn", DO: "1", User: "u1", Name: "A",
-		Provider: "Inhouse", Site: "1921",
+		Provider: "Inhouse", Site: "1291",
 		Start: time.Date(2026, 9, 1, 8, 0, 0, 0, time.Local),
 		End: time.Date(2026, 9, 1, 9, 0, 0, 0, time.Local),
 		Pieces: 100, Duration: 10,
@@ -50,13 +50,13 @@ func TestRecoveredV13PerDODeduction(t *testing.T) {
 	rows := []PayrollRow{
 		{
 			Job: "Pick", EvenOdd: "Chẵn", DO: "DO-1", User: "u1", Name: "A",
-			Provider: "Inhouse", Site: "1921",
+			Provider: "Inhouse", Site: "1291",
 			Start: now.Add(-2 * time.Hour), End: now.Add(-90 * time.Minute),
 			Pieces: 100, SKU: 11, Duration: 6,
 		},
 		{
 			Job: "Pick", EvenOdd: "Chẵn", DO: "DO-2", User: "u1", Name: "A",
-			Provider: "Inhouse", Site: "1921",
+			Provider: "Inhouse", Site: "1291",
 			Start: now.Add(-80 * time.Minute), End: now.Add(-60 * time.Minute),
 			Pieces: 100, SKU: 21, Duration: 6,
 		},
@@ -77,7 +77,7 @@ func TestRecoveredV13SpeedUsesMinutesAndFloors(t *testing.T) {
 	now := time.Date(2026, 9, 1, 12, 0, 0, 0, time.Local)
 	rows := []PayrollRow{{
 		Job: "Pick", EvenOdd: "Chẵn", DO: "DO-1", User: "u1", Name: "A",
-		Provider: "Inhouse", Site: "1921",
+		Provider: "Inhouse", Site: "1291",
 		Start: now.Add(-2 * time.Hour), End: now.Add(-time.Hour),
 		Pieces: 100, SKU: 0, Duration: 6,
 	}}
@@ -96,7 +96,7 @@ func TestRecoveredV13RoboticsAlwaysCa1(t *testing.T) {
 	now := time.Date(2026, 9, 1, 20, 0, 0, 0, time.Local)
 	rows := []PayrollRow{{
 		Job: "Pick", EvenOdd: "Lẻ", DO: "DO-1", User: "robot1", Name: "Robot",
-		Provider: "Robotics", Site: "1921",
+		Provider: "Robotics", Site: "1291",
 		Start: now.Add(-2 * time.Hour), End: now.Add(-time.Hour),
 		Pieces: 10, Duration: 10,
 	}}
@@ -115,5 +115,21 @@ func TestParseTenureDays(t *testing.T) {
 func TestPercentType(t *testing.T) {
 	if FormatPercent(0.42) != "42.0%" {
 		t.Fatal(FormatPercent(0.42))
+	}
+}
+
+
+func TestSite1291Filter(t *testing.T) {
+	b := DefaultBusinessSettings()
+	b.PickShift = "Tất cả"
+	b.ShowAllSite = false
+	now := time.Date(2026, 9, 19, 12, 0, 0, 0, time.Local)
+	rows := []PayrollRow{
+		{Job:"Pick", EvenOdd:"Chẵn", DO:"D1", User:"u1291", Name:"A", Site:"1291", Start:now.Add(-2*time.Hour), End:now.Add(-time.Hour), Pieces:100, Duration:10},
+		{Job:"Pick", EvenOdd:"Chẵn", DO:"D2", User:"uother", Name:"B", Site:"1399", Start:now.Add(-2*time.Hour), End:now.Add(-time.Hour), Pieces:100, Duration:10},
+	}
+	pick, _, _ := BuildTables(rows, b, now)
+	if len(pick.Rows) != 1 || pick.Rows[0][4] != "u1291" {
+		t.Fatalf("Site1291 filter mismatch: %#v", pick.Rows)
 	}
 }
