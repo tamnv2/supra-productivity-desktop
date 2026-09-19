@@ -36,3 +36,10 @@ Do not break these without an explicit new owner decision.
 - GitHub canonical state overrides model memory.
 - Every substantive task updates project state and next action.
 - Owner acceptance is explicit; an untested implementation is not recorded as accepted.
+
+## Report and synchronization
+
+- Production/report synchronization is user-triggered; background telemetry timers must not trigger business-data downloads.
+- Selected date range defaults to today; multi-day report ranges must not cause Pick/Pack/Phân ca targets to aggregate across days.
+- Historical production cache is date-addressed and reusable. A sync must fetch only missing historical ranges, while the current day is refreshable on every manual sync.
+- Native Recap calculations do not depend on Google Sheets availability.
