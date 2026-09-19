@@ -2,41 +2,33 @@
 
 Updated: 2026-09-19
 
-## Verified state
+## Current baseline
 
-`v1.3.1-test.1` is **owner-rejected** and must not be promoted.
+The owner supplied `SUPRA_PRODUCTIVITY_V1.3_TEST_FULL_SOURCE.zip`, reconstructed from the stable V1.3 executable. That recovered behavior is now the authority for this rebuild.
 
-Replacement candidate **`v1.3.1-test.2`** is now published and all required GitHub checks passed:
+The previous GitHub candidates `v1.3.1-test.1` and `v1.3.1-test.2` are not the baseline for business behavior.
 
-- Project State Guard: run `35416300901` — PASS
-- Build Windows Portable: run `35416300869` — PASS
-- Publish Owner Test Candidate: run `35416300861` — PASS
-- release target commit: `59ebff41eafc90acf74c954315b49bf6b3f36521`
+## Rebuild included
 
-### test.2 changes
-
-- runtime logging removed from synchronous UI filesystem paths;
-- runtime logs use a bounded background queue in local AppData;
-- diagnostic export runs off the UI thread;
-- log viewer reads a bounded tail only;
-- business navigation moved to one bottom row;
-- operational content uses near-full window width;
-- app opens full Windows work-area and is not resizable; minimize-to-taskbar remains available;
-- shell styling is restrained and consistent, with a dark header and status-aware text.
+- recovered V1.3 business defaults and formulas;
+- V1.3 shift classification and manual-shift priority;
+- per-DO SKU deduction using `ceil(SKU/10)`;
+- payroll duration kept in minutes and productivity speed calculated from minutes;
+- recovered active-picking 31-column shape;
+- stable-style left-navigation desktop shell;
+- asynchronous/non-blocking diagnostics retained;
+- private endpoint bindings remain local via encrypted runtime profile;
+- GitHub updater supports both stable and test/prerelease channels;
+- updater still verifies SHA256, creates a backup, replaces after exit and restores the backup if replacement itself fails.
 
 ## Immediate next action
 
-**Owner tests `v1.3.1-test.2` on the target company laptop.**
+1. Run GitHub PR CI for candidate source `v1.3.2-test.1`.
+2. Require PASS for project/public guards, Go tests, vet, Windows x64 build and binary scan.
+3. Merge only after CI passes.
+4. Publish `v1.3.2-test.1`.
+5. Publish identical-source `v1.3.2-test.2` as the updater target.
+6. Owner runs test.1 on the target company laptop and clicks **CẬP NHẬT**. It must detect test.2, verify SHA256, replace/restart successfully and show the new version.
+7. Only after that updater/runtime pass should further feature/UI changes resume.
 
-Priority verification:
-1. open app and switch screens repeatedly — Windows must not show `Not Responding`;
-2. confirm full-size / minimize-only window behavior;
-3. confirm bottom navigation and usable content area;
-4. test Pick / Pack / Phân ca controls;
-5. sync on PDA network;
-6. sync on restricted Office network;
-7. leave running long enough to inspect CPU/RAM/log stability.
-
-If any item fails, send the private diagnostic and screenshot; record only sanitized findings in the public repository.
-
-Do not publish stable until explicit owner acceptance.
+Stable release remains blocked until explicit owner acceptance.
