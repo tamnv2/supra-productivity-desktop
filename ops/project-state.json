@@ -6,8 +6,8 @@
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
   "current_version": "v1.3.2-test.3",
-  "current_phase": "owner-test-candidate-publishing",
-  "current_status": "test3_merged_ci_pass_release_publish_pending",
+  "current_phase": "owner-runtime-verification",
+  "current_status": "test3_published_owner_runtime_verification_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -75,10 +75,11 @@
     "Published identical-source v1.3.2-test.2 as the real GitHub updater target.",
     "PR #4 passed Project State Guard run 35420791580.",
     "PR #4 passed Windows Portable build run 35420791549 including tests, vet, cross-build, binary scan, packaging and artifact upload.",
-    "Merged Excel-like bottom navigation, unified Log and runtime stability candidate to main at e653ff0765124f4c009fded5be14c4ad0e1c7dcf."
+    "Merged Excel-like bottom navigation, unified Log and runtime stability candidate to main at e653ff0765124f4c009fded5be14c4ad0e1c7dcf.",
+    "Published GitHub prerelease v1.3.2-test.3 for owner runtime verification."
   ],
-  "current_task": "Publish and owner-test v1.3.2-test.3 with Excel-like bottom navigation, unified log and runtime stability fixes.",
-  "next_action": "Confirm v1.3.2-test.3 GitHub prerelease publication, then owner tests rapid tab switching, Pick/Pack/Phân ca controls, maximized/minimize behavior and XUẤT LOG. If a hang remains, use the exported unified Log to identify the blocking UI command/render/table operation.",
+  "current_task": "Owner runtime verification of v1.3.2-test.3 bottom navigation, unified Log, anti-freeze behavior and always-maximized window.",
+  "next_action": "Owner downloads/runs v1.3.2-test.3, rapidly switches tabs and uses Pick/Pack/Phân ca controls, verifies minimize restores maximized and restore-down/resize is blocked, verifies XUẤT LOG Save As. If any hang remains, send the exported Log. Excel parity feature decisions remain pending Owner approval.",
   "blockers": [
     "GitHub PR CI/build must pass for v1.3.2-test.3.",
     "Owner target-laptop verification is required for the reported hang.",
@@ -107,7 +108,7 @@
     "v1.3.2-test.1": "published_ci_pass_updater_source",
     "v1.3.2-test.2": "published_ci_pass_updater_target",
     "updater_test1_to_test2": "owner_runtime_pending",
-    "v1.3.2-test.3": "pr_ci_pass_merged_publish_pending"
+    "v1.3.2-test.3": "published_owner_runtime_pending"
   },
   "security": {
     "public_repo": true,
@@ -149,7 +150,7 @@
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
     "candidate_release": "v1.3.2-test.3",
-    "candidate_release_status": "publish_pending",
+    "candidate_release_status": "published_prerelease",
     "candidate_publish_run_id": null,
     "main_build_run_id": null,
     "pr_ci_state_guard_run_id": 35420791580,
