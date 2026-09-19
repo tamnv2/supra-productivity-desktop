@@ -63,3 +63,13 @@ Canonical record of explicit owner decisions. Newest explicit owner instruction 
 - The previous GitHub test.1/test.2 implementation must not override recovered V1.3 behavior where they differ.
 - Further UI/feature changes are deferred until the V1.3 rebaseline and GitHub updater path pass owner testing.
 - Public-repository security remains unchanged: recovered private endpoint/proxy values must not be committed; local encrypted runtime binding remains required.
+
+## 2026-09-19 — Excel-like bottom navigation and unified log
+
+- Move primary business navigation to the bottom, following the Excel worksheet-tab interaction model.
+- Log becomes the single comprehensive technical record for the app: UI, performance, sync, network, update, runtime state and errors, excluding sensitive values.
+- Remove the separate diagnostic concept; allow exporting a standalone sanitized log file to a user-selected location.
+- The desktop window must stay maximized and non-resizable; minimize-to-taskbar remains allowed.
+- Use the original Excel workbook as the UI/business reference, but do not copy hidden-sheet plumbing or expose sensitive configuration.
+- Detailed keep/remove decisions from the Excel workbook are pending Owner confirmation; see `docs/EXCEL_PARITY_PROPOSAL.md`.
+
