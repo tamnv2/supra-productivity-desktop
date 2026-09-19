@@ -14,12 +14,13 @@ All entries must be sanitized for a public repository.
 
 ### Security / runtime
 - Production credential values, internal endpoint bindings, company datasets, and raw diagnostics remain excluded from the public repository.
-- Added documented private runtime-profile direction for local DPAPI-protected endpoint provisioning.
+- Added local runtime-profile provisioning: plaintext profile beside the EXE is validated, DPAPI-encrypted for the current Windows user, and removed after successful import where possible.
 - cURL session input remains local and DPAPI-protected.
 
 ### Update
-- Added non-fatal GitHub latest-release check foundation.
-- Automatic staged install/SHA256/rollback/manual-offline update remains pending.
+- Added non-fatal GitHub latest-release check.
+- Added staged stable-release download, SHA256 verification, current-EXE backup, replace-after-exit, restart, and replacement-failure restore.
+- Manual/offline package selection and startup-health rollback remain pending.
 
 ### Repository / continuity
 - GitHub is canonical for project state, owner decisions, next action, invariants, sanitized issues, and session continuity.
