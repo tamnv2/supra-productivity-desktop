@@ -76,6 +76,32 @@ func ExpandBinding(b Binding, now time.Time) Binding {
 	return b
 }
 
+func ExpandBindingRange(b Binding, now, from, to time.Time) Binding {
+	b = ExpandBinding(b, now)
+	repl := map[string]string{
+		"{{FROM_DATE_ISO}}": from.Format("2006-01-02"),
+		"{{TO_DATE_ISO}}": to.Format("2006-01-02"),
+		"{{FROM_DATE_DMY}}": from.Format("02/01/2006"),
+		"{{TO_DATE_DMY}}": to.Format("02/01/2006"),
+	}
+	expand := func(s string) string {
+		for k, v := range repl {
+			s = strings.ReplaceAll(s, k, v)
+		}
+		return s
+	}
+	b.URL = expand(b.URL)
+	b.Body = expand(b.Body)
+	if len(b.Headers) > 0 {
+		h := make(map[string]string, len(b.Headers))
+		for k, v := range b.Headers {
+			h[k] = expand(v)
+		}
+		b.Headers = h
+	}
+	return b
+}
+
 func Execute(ctx context.Context, client *http.Client, b Binding, s Session) ([]byte, HTTPMeta, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 45 * time.Second}
@@ -190,13 +216,14 @@ func ParsePayrollXLSX(data []byte, b Binding) ([]core.PayrollRow, error) {
 		return -1
 	}
 	idx := struct {
-		job, evenOdd, doCode, user, name, provider, mnv, site, tenure int
+		job, evenOdd, doCode, reference, user, name, provider, mnv, site, tenure int
 		shift, manualShift, status                               int
 		start, end, duration, sku, pieces                        int
 	}{
 		resolve("job", "Loại công việc", "Công việc", "JobType", "Job", "Work Type"),
 		resolve("even_odd", "Chẵn/Lẻ", "Chẵn lẻ", "Chan/Le", "EvenOdd", "Even/Odd"),
 		resolve("do_code", "DO", "Mã DO", "DeliveryOrder", "DO Code"),
+		resolve("reference", "Mã Tham chiếu", "Mã tham chiếu", "Reference", "Reference Code"),
 		resolve("user", "User", "Nhân viên", "Mã nhân viên", "Employee", "Employee User"),
 		resolve("name", "Họ và tên", "Tên nhân viên", "Họ và Tên", "Họ tên", "FullName", "Name", "Employee Name"),
 		resolve("provider", "Đối tác", "Nhà cung cấp", "Provider", "Vendor"),
@@ -243,7 +270,7 @@ func ParsePayrollXLSX(data []byte, b Binding) ([]core.PayrollRow, error) {
 		sku, _ := parseInt(get(idx.sku))
 		pieces, _ := parseInt(get(idx.pieces))
 		out = append(out, core.PayrollRow{
-			Job: job, EvenOdd: get(idx.evenOdd), DO: get(idx.doCode), User: user,
+			Job: job, EvenOdd: get(idx.evenOdd), DO: get(idx.doCode), Reference: get(idx.reference), User: user,
 			Name: get(idx.name), Provider: get(idx.provider), MNV: get(idx.mnv),
 			Site: get(idx.site), Tenure: get(idx.tenure), Shift: get(idx.shift),
 			ManualShift: get(idx.manualShift), Start: start, End: end,
