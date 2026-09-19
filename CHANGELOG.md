@@ -92,3 +92,14 @@ Status: private test build; owner acceptance pending.
 - Window now starts maximized, has no resize/restore-down flow, and still allows minimizing to the taskbar.
 - Added sanitized Excel parity proposal for Owner review.
 
+## 2026-09-19 — test.4 Win32 hang/work-area correction
+
+- Removed forced `SW_MAXIMIZE` calls from `WM_SYSCOMMAND`.
+- App is pinned to the current monitor work area (`rcWork`) so the taskbar remains visible.
+- Restore-down, resize, move and explicit maximize are blocked without recursive window-state changes; minimize remains allowed.
+- Native Save As for Log export now runs on a dedicated locked OS thread instead of blocking the main UI thread.
+- Log viewer no longer performs synchronous log flush before rendering and only shows a bounded recent tail.
+- Added standard Windows background brush to eliminate the broken grey/white strip rendering.
+- Bottom navigation uses persistent checked/push-like tab state.
+- Added UI watchdog stack capture for stalls of six seconds or longer.
+
