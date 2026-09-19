@@ -53,3 +53,17 @@ func TestBuildReportsDoesNotTreatBlankReferenceAsAutoPP(t *testing.T) {
 		t.Fatalf("blank reference must not map Auto PP, got=%v", got)
 	}
 }
+
+
+func TestBuildReportsUsesFirstPackMatchLikeVLookup(t *testing.T) {
+	day := time.Date(2026, 9, 11, 0, 0, 0, 0, time.Local)
+	rows := []PayrollRow{
+		{Job: "Pick", EvenOdd: "Chẵn", Reference: "REF-X", User: "picker", End: day.Add(9 * time.Hour), Duration: 10, Pieces: 100},
+		{Job: "Pack", EvenOdd: "Chẵn", Reference: "REF-X", User: "pack-normal", End: day.Add(9 * time.Hour), Duration: 10, Pieces: 100},
+		{Job: "Pack", EvenOdd: "Chẵn", Reference: "REF-X", User: "robotics", End: day.Add(10 * time.Hour), Duration: 10, Pieces: 100},
+	}
+	r := BuildReports(rows, day, day)
+	if got := r.Recap.Rows[0][3]; got != 0 {
+		t.Fatalf("first Pack match is not robotics, Auto PP must be 0; got=%v", got)
+	}
+}
