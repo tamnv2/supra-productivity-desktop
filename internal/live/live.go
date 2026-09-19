@@ -277,9 +277,6 @@ func ParsePayrollXLSX(data []byte, b Binding) ([]core.PayrollRow, error) {
 			Duration: minutes, SKU: sku, Pieces: pieces,
 		})
 	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("Payroll không có dữ liệu")
-	}
 	return out, nil
 }
 
