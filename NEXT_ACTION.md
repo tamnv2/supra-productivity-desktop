@@ -2,37 +2,48 @@
 
 Updated: 2026-09-19
 
-## Current blocker
+## Current verified state
 
-The public GitHub continuity/security bootstrap is complete.
+The canonical sanitized source is now in GitHub and the pull-request build has passed:
 
-The current **V1.3 TEST package is binary-only** in the active handoff artifacts:
-- EXE
-- test guide
-- changelog
-- SHA256
+- project-state validation: PASS
+- public-repo sensitive-value guard: PASS
+- `go test ./...`: PASS
+- `go vet ./...`: PASS
+- Windows x64 cross-build: PASS
+- public binary scan: PASS
+- package + artifact upload: PASS
 
-It does **not** contain the source tree used to build V1.3.
-
-Therefore a reproducible GitHub Actions build/release is **not yet complete** and must not be represented as complete.
+Verified CI:
+- workflow run: `35412096189`
+- artifact: `SupraProductivity-windows-x64`
+- artifact id: `10574174267`
+- artifact digest: `sha256:1103ef127b603408516979bdfbe8c87c3164b4562ef4ab1deee6a938f953bf8c`
 
 ## Immediate next action
 
-**Restore/create the canonical source tree that reproduces the current V1.3 behavior, then commit it after a public-repo security scrub.**
+**Owner-test the GitHub-built artifact on the target company laptop.**
 
-Required order:
+Test in this order:
 
-1. Restore/recreate V1.3-equivalent source.
-2. Run public-repo secret/sensitive-data validation.
-3. Commit canonical source to `main`.
-4. Add Windows x64 GitHub Actions build.
-5. Verify GitHub-built EXE against local V1.3 behavior.
-6. Add tagged GitHub Release: EXE + ZIP + SHA256 + release notes.
-7. Add GitHub updater with non-fatal failure and manual/offline fallback for restricted Office network.
-8. Continue owner testing on PDA + Office and record only sanitized diagnostic findings.
+1. Start as standard Windows user.
+2. Import Dashboard session using Copy-as-cURL bash.
+3. Sync on PDA network.
+4. Sync on restricted Office network.
+5. Verify PICK no longer flickers/blanks.
+6. Verify manual shift, double-click detail, typed sorting and operational controls.
+7. Leave the app running long enough to review CPU/RAM/log stability.
 
-## Do not do
+If accepted:
+- create the next semantic version tag;
+- let `.github/workflows/release.yml` publish the Windows portable GitHub Release;
+- future accepted clients update through GitHub Release with SHA256 verification.
 
-- Do not upload or reverse-publish real token/cookie/signature values.
-- Do not commit raw diagnostic ZIPs or operational spreadsheets.
-- Do not call GitHub build/release "done" before canonical source builds successfully in Actions.
+If not accepted:
+- export diagnostics privately;
+- commit only sanitized findings;
+- fix the verified regression and let GitHub Actions rebuild.
+
+## Important
+
+A **stable release is intentionally not published yet**. Publishing a stable tag before the GitHub-built candidate is tested on the company laptop would incorrectly mark an unverified build as accepted.
