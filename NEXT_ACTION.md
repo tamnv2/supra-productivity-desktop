@@ -2,42 +2,41 @@
 
 Updated: 2026-09-19
 
-## Verified from Owner logs
+## Published candidate
 
-The real GitHub self-update path has passed:
-- `v1.3.2-test.1` detected `v1.3.2-test.2`;
-- updater staged the release after SHA256 verification;
-- application exited;
-- replacement completed;
-- application restarted as `v1.3.2-test.2`.
+**v1.3.2-test.3** is published.
 
-## Current candidate
+Automated verification before merge:
+- Project State Guard `35420791580` — PASS
+- Windows Portable `35420791549` — PASS
+- Unit tests — PASS
+- Go vet — PASS
+- Windows x64 cross-build — PASS
+- Public binary scan — PASS
+- Packaging/artifact — PASS
 
-Target: **`v1.3.2-test.3`**
+## Included in test.3
 
-Changes:
-1. Excel-like business navigation moved to the bottom.
-2. Operational content/table area expands into the space previously used by the left navigation.
-3. One comprehensive sanitized **LOG** replaces the separate diagnostic concept.
-4. Log captures UI/page/command/table timing, sync/network/update events, periodic RAM/runtime state, row counts and recovered panic details without credentials.
-5. **XUẤT LOG...** opens a native Save As dialog so the Owner chooses where to save the combined log file.
-6. Page rendering is non-reentrant; same-tab clicks do not recreate the screen.
-7. Checkbox/combo changes post refresh back to the UI queue instead of destroying controls inside their own event handler.
-8. ListView redraw is suspended during bulk row insertion to reduce freezes on weak laptops.
-9. Window starts maximized and cannot restore/resize to a smaller desktop window; minimize-to-taskbar remains allowed.
-10. Sanitized Excel parity proposal is in `docs/EXCEL_PARITY_PROPOSAL.md`; detailed feature parity waits for Owner decisions.
+1. Excel-like bottom business navigation.
+2. Wider operational content/table area.
+3. One comprehensive sanitized **LOG** instead of a separate diagnostic subsystem.
+4. Native **XUẤT LOG...** Save As dialog.
+5. Log coverage for UI page/command timing, table-fill timing, sync/network/update, periodic RAM/runtime state, row counts, panic capture and dropped-log detection.
+6. Re-entrant page rendering blocked.
+7. Same-tab clicks no longer rebuild the page.
+8. Checkbox/combo refresh is deferred through the UI message queue.
+9. ListView redraw is disabled during bulk fill to reduce freezes.
+10. App always opens maximized; restore-down/resize/move is blocked; minimize-to-taskbar remains allowed.
+11. Original Excel workbook has been analyzed and a sanitized keep/convert/remove proposal is stored in `docs/EXCEL_PARITY_PROPOSAL.md`.
 
-## Immediate next action
+## Owner test now
 
-Run PR CI for test.3. Merge/publish only if state guard, public-repo guard, unit tests, vet, Windows x64 build and binary scan pass.
+- rapidly switch all bottom tabs;
+- operate Pick / Pack / Phân ca controls;
+- minimize and restore — it must return maximized;
+- try restore-down/resize — it must stay maximized;
+- open LOG;
+- use **XUẤT LOG...** and choose a save location;
+- if any freeze/hang remains, send that exported Log.
 
-After publish, Owner tests:
-- rapid switching across all bottom tabs;
-- Pick/Pack/Phân ca controls;
-- minimize then restore (must return maximized);
-- attempt resize/restore-down (must remain maximized);
-- LOG display;
-- XUẤT LOG... Save As;
-- if any hang remains, send the exported Log.
-
-Stable release remains blocked until explicit Owner acceptance.
+Do not implement additional Excel-parity business functions until Owner confirms the pending keep/remove items.
