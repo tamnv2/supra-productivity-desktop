@@ -38,15 +38,18 @@ Implemented foundation:
 - no dependency on GitHub for core startup/operation;
 - blocked GitHub on Office network is treated as an update-check limitation, not network failure.
 
+Implemented:
+1. download stable release EXE and SHA256 asset;
+2. verify SHA256 before replacement;
+3. stage new executable beside the current portable EXE;
+4. back up the current executable;
+5. replace after app exit with retry;
+6. restart the application;
+7. restore the backup if replacement itself fails.
+
 Still required:
-1. download release asset;
-2. verify SHA256;
-3. stage new executable;
-4. back up current executable;
-5. replace after app exit;
-6. restart;
-7. rollback on replacement/start failure where technically possible;
-8. support manual/offline package selection for restricted Office network.
+- manual/offline package selection for restricted Office network;
+- stronger startup-health rollback if a newly replaced EXE launches but fails shortly afterward.
 
 ## Private operational configuration
 
