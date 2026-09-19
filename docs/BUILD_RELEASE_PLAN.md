@@ -28,8 +28,8 @@ Canonical trigger:
 The workflow rebuilds from canonical source, reruns guards/tests/vet/binary scan and publishes a GitHub **prerelease**.
 
 Current candidate:
-- `v1.3.2-test.1` — recovered V1.3 rebaseline candidate.
-- After test.1 is published, `v1.3.2-test.2` will be published from identical source as the in-app updater verification target.
+- `v1.3.2-test.1` — published recovered V1.3 updater-source candidate.
+- `v1.3.2-test.2` — published identical-source in-app updater target.
 
 Previous `v1.3.1-test.1` and `v1.3.1-test.2` are superseded for business-behavior baseline purposes by the owner-provided recovered V1.3 source.
 
@@ -62,7 +62,7 @@ Update path:
 8. restart;
 9. restore backup if replacement itself fails.
 
-The rebaseline is verified with a real `v1.3.2-test.1` → `v1.3.2-test.2` update pair.
+The release pair for verification is published: `v1.3.2-test.1` → `v1.3.2-test.2`. Actual EXE replacement/restart verification remains an owner target-laptop test.
 
 GitHub/public Internet being unavailable is non-fatal; core internal operations continue.
 
