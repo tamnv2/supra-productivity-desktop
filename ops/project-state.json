@@ -6,8 +6,8 @@
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
   "current_version": "v1.3.1-public-source-test",
-  "current_phase": "public-build-pipeline-and-live-profile-provisioning",
-  "current_status": "source_imported_ci_configured",
+  "current_phase": "live-profile-binding-and-github-build-verification",
+  "current_status": "public_source_ci_updater_foundation_ready",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -39,34 +39,34 @@
     ]
   },
   "last_completed": [
-    "Established GitHub canonical continuity/security/state scaffolding for public-repo AI handoff",
-    "Reconstructed and committed a sanitized public Go/Win32 source tree without production credentials, private endpoint URLs, raw diagnostics, or employee snapshots",
-    "Added Excel-derived core business model and regression unit tests for tenure sorting, manual shift priority, even-credit logic, and percent typing",
-    "Added public-source binary guard and repository sensitive-value guard",
-    "Added GitHub Actions Windows x64 portable build artifact workflow",
-    "Added GitHub Actions versioned release workflow with stable tags published as normal releases and hyphenated test tags as prereleases",
-    "Added non-fatal GitHub release update-check foundation in the application"
+    "Established GitHub canonical continuity/security/state scaffolding",
+    "Committed sanitized public Go/Win32 source without production credentials, private endpoint URLs, raw diagnostics, or employee snapshots",
+    "Added core business model/regression tests and typed table foundations",
+    "Added Windows x64 GitHub Actions build and versioned Release workflows",
+    "Added local DPAPI runtime-profile provisioning from SupraProductivity.profile.json",
+    "Added staged GitHub update flow: download release EXE/checksum, SHA256 verify, local backup, replace after exit, restart; replacement failure restores backup",
+    "Local go test ./..., go vet ./..., Windows x64 cross-build, and public binary scan passed"
   ],
-  "current_task": "Provision the private operational live-data profile locally without publishing internal endpoint bindings, then validate the GitHub-built executable on a company laptop.",
-  "next_action": "Implement a local encrypted runtime profile for private operational endpoints/data-source bindings, finish staged GitHub updater with SHA256/rollback/manual fallback, then owner-test the GitHub-built executable on PDA and Office.",
+  "current_task": "Bind locally provisioned private operational requests to full live Active-Picking and Payroll/Productivity synchronization, then validate the GitHub-built artifact on target networks.",
+  "next_action": "Implement live request/response binding through the encrypted runtime profile, then trigger and verify the GitHub Actions artifact and owner-test it on PDA and Office.",
   "blockers": [
-    "Private operational endpoint/data-source bindings are intentionally excluded from the public repository and need a local provisioning mechanism before the public GitHub build can provide full live Pick/Pack/Active-Picking parity.",
-    "GitHub Actions workflows are committed, but connector-created repository events did not expose a workflow run for verification; first external push/manual workflow dispatch must confirm the remote build.",
-    "The public source is a sanitized reconstruction, not a bit-for-bit copy of the earlier private V1.3 test source and is not owner-accepted until target-laptop testing."
+    "Production live-data request bindings/response mapping remain private and must be provisioned locally; the public source must not embed them.",
+    "Remote GitHub Actions run is not yet verified because connector-created events did not expose a workflow run; a normal external push/manual dispatch is still needed.",
+    "Sanitized public source is not owner-accepted until the GitHub-built executable is tested on the company laptop."
   ],
   "known_issues": [
-    "Public source currently validates the imported cURL session but does not yet bind all private live operational endpoints required for complete live Pick/Pack/Active-Picking synchronization.",
-    "GitHub updater currently checks the latest stable release and opens the Release page; automatic staged replacement, SHA256 verification, rollback, and manual offline package install are still pending.",
-    "Overview public reconstruction reports memory/runtime metrics but full process/system CPU telemetry still needs parity work.",
-    "PICK numeric target/quota controls in the public reconstruction are not yet all exposed as editable on-screen fields.",
-    "User/PDA public build intentionally contains no bundled company snapshot; live/local source binding is pending.",
-    "V1.3 PICK flicker/event-storm fix still requires owner verification on the target company laptop."
+    "Runtime profile import/encryption exists, but full live Active-Picking and Payroll/Productivity parsers are not yet wired to those bindings.",
+    "Updater now stages/verifies/replaces with backup, but manual/offline package picker and startup-health rollback are still incomplete.",
+    "Overview still needs full CPU telemetry parity.",
+    "All PICK numeric target/quota fields are not yet editable in the reconstructed public UI.",
+    "User/PDA has no bundled company snapshot by design; live binding remains pending.",
+    "V1.3 PICK flicker/event-storm fix still requires owner verification on target hardware."
   ],
   "test_status": {
     "v1.1": "superseded",
     "v1.2": "superseded",
     "v1.3-private-test": "owner_test_pending",
-    "v1.3.1-public-source-test": "local_cross_build_and_core_tests_passed_remote_actions_pending",
+    "v1.3.1-public-source-test": "local_tests_vet_cross_build_binary_scan_passed_remote_actions_pending",
     "pda_network": "retest_public_build_required",
     "office_network": "retest_public_build_required"
   },
@@ -97,6 +97,25 @@
     "local_cross_build": "passed",
     "core_unit_tests": "passed",
     "local_binary_public_guard": "passed",
-    "remote_actions_verification": "pending_external_trigger"
+    "remote_actions_verification": "pending_external_trigger",
+    "local_go_test_all": "passed",
+    "local_go_vet_all": "passed"
+  },
+  "update_pipeline": {
+    "latest_release_check": "implemented",
+    "sha256_verification": "implemented",
+    "staged_replace": "implemented",
+    "backup_before_replace": "implemented",
+    "restart_after_replace": "implemented",
+    "replace_failure_restore": "implemented",
+    "manual_offline_package": "pending",
+    "startup_health_rollback": "pending"
+  },
+  "runtime_profile": {
+    "public_schema": "documented",
+    "local_provisioning": "implemented",
+    "storage": "Windows DPAPI current user",
+    "plaintext_profile_removed_after_import": "best_effort",
+    "live_binding": "pending"
   }
 }
