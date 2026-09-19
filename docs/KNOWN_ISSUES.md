@@ -86,3 +86,11 @@ Updated: 2026-09-19
 - test.6 moves the source request configuration into the application itself with explicit **Sản lượng** and **Đang lấy hàng** cURL capture.
 - **Status:** fixed in test.6 candidate; Owner must configure each actual source once on the target Windows user.
 
+### test.6 same-cURL split regression
+- Owner confirmed Đang lấy hàng and Sản lượng use the same Dashboard source/session.
+- test.6 incorrectly stored the same cURL as two source definitions.
+- Sanitized runtime evidence: active-picking returned HTTP 200 and 10 rows, while the payroll branch tried to parse the same JSON payload as XLSX and failed with `zip: not a valid zip file`.
+- Consequence: User/PDA, Pick, Pack and Phân ca remained empty.
+- test.7 derives the two correct internal Dashboard requests from one captured session and restores the Excel production pipeline.
+- **Status:** code fixed; target-laptop live verification pending.
+
