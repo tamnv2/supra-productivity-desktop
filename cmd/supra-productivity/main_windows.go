@@ -63,6 +63,9 @@ const (
 	WM_APP_STATUS                = WM_APP + 1
 	WM_APP_REFRESH               = WM_APP + 2
 	WM_APP_FIT_WORKAREA          = WM_APP + 3
+	WM_APP_PING                  = WM_APP + 4
+	WM_APP_METRICS               = WM_APP + 5
+	WM_APP_LOGTEXT               = WM_APP + 6
 	SW_SHOW                      = 5
 	SW_MAXIMIZE                  = 3
 	CW_USEDEFAULT                = 0x80000000
@@ -72,6 +75,7 @@ const (
 	ES_READONLY                  = 0x0800
 	ES_AUTOHSCROLL               = 0x0080
 	BS_PUSHBUTTON                = 0x00000000
+	BS_GROUPBOX                  = 0x00000007
 	BS_AUTOCHECKBOX              = 0x00000003
 	CBS_DROPDOWNLIST             = 0x0003
 	CB_ADDSTRING                 = 0x0143
@@ -357,10 +361,69 @@ var (
 	rendering                                                                                            atomic.Bool
 	lastTelemetry                                                                                        time.Time
 	fittingWindow                                                                                        atomic.Bool
-	uiHeartbeat                                                                                          atomic.Int64
+	uiPingSeq                                                                                            atomic.Uint64
+	uiPongSeq                                                                                            atomic.Uint64
+	metricsBusy                                                                                          atomic.Bool
+	metricText                                                                                           string
+	metricMu                                                                                             sync.Mutex
+	pendingLogText                                                                                       string
+	pendingLogMu                                                                                         sync.Mutex
+	logExportBusy                                                                                        atomic.Bool
+	windowWidth                                                                                          atomic.Int64
+	windowHeight                                                                                         atomic.Int64
+	currentTableTop                                                                                      = 170
+	currentLogTop                                                                                        = 170
 )
 
 func maxInt(a, b int) int { if a > b { return a }; return b }
+
+func clientSize() (int, int) {
+	var rc RECT
+	pGetClientRect.Call(mainWnd, uintptr(unsafe.Pointer(&rc)))
+	return int(rc.Right), int(rc.Bottom)
+}
+
+func groupBox(title string, x, y, w, h int) uintptr {
+	g := create("BUTTON", title, WS_CHILD|WS_VISIBLE|BS_GROUPBOX, x, y, w, h, mainWnd, 0)
+	setFont(g, fontSmall)
+	addPage(g)
+	return g
+}
+
+func sectionLabel(text string, x, y, w int) uintptr {
+	c := static(text, x, y, w, 24, true)
+	return c
+}
+
+func requestOverviewMetrics() {
+	if currentPage != ID_NAV_OVERVIEW || !metricsBusy.CompareAndSwap(false, true) { return }
+	go func() {
+		defer metricsBusy.Store(false)
+		var ms MEMORYSTATUSEX
+		ms.Length = uint32(unsafe.Sizeof(ms))
+		pGlobalMemory.Call(uintptr(unsafe.Pointer(&ms)))
+		var rm runtime.MemStats
+		runtime.ReadMemStats(&rm)
+		used := ms.TotalPhys - ms.AvailPhys
+		txt := fmt.Sprintf("RAM máy: %.1f / %.1f GB (%d%%)   •   RAM ứng dụng: %.1f MB   •   Goroutine: %d",
+			float64(used)/1e9, float64(ms.TotalPhys)/1e9, int(ms.MemoryLoad),
+			float64(rm.Alloc)/1024/1024, runtime.NumGoroutine())
+		metricMu.Lock()
+		metricText = txt
+		metricMu.Unlock()
+		if mainWnd != 0 { pPostMessage.Call(mainWnd, WM_APP_METRICS, 0, 0) }
+	}()
+}
+
+func loadLogTailAsync() {
+	go func() {
+		text := readLogTail(220)
+		pendingLogMu.Lock()
+		pendingLogText = text
+		pendingLogMu.Unlock()
+		if mainWnd != 0 { pPostMessage.Call(mainWnd, WM_APP_LOGTEXT, 0, 0) }
+	}()
+}
 
 func fitWindowToWorkArea() {
 	if mainWnd == 0 || !fittingWindow.CompareAndSwap(false, true) { return }
@@ -384,25 +447,23 @@ func fitWindowToWorkArea() {
 }
 
 func uiWatchdog() {
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
-	reported := false
+	var lastReported uint64
 	for range ticker.C {
-		ns := uiHeartbeat.Load()
-		if ns == 0 { continue }
-		blocked := time.Since(time.Unix(0, ns))
-		if blocked >= 6*time.Second {
-			if reported { continue }
-			reported = true
-			buf := make([]byte, 128*1024)
-			n := runtime.Stack(buf, true)
-			logEvent("ERROR", "UI_WATCHDOG_STALL",
-				"blocked_ms", strconv.FormatInt(blocked.Milliseconds(), 10),
-				"page", strconv.Itoa(currentPage),
-				"stack", string(buf[:n]))
-			continue
-		}
-		reported = false
+		if mainWnd == 0 { continue }
+		seq := uiPingSeq.Add(1)
+		pPostMessage.Call(mainWnd, WM_APP_PING, uintptr(seq), 0)
+		time.Sleep(5 * time.Second)
+		if uiPongSeq.Load() >= seq { continue }
+		if lastReported == seq { continue }
+		lastReported = seq
+		buf := make([]byte, 128*1024)
+		n := runtime.Stack(buf, true)
+		logEvent("ERROR", "UI_WATCHDOG_STALL",
+			"ping_seq", strconv.FormatUint(seq, 10),
+			"page", strconv.Itoa(currentPage),
+			"stack", string(buf[:n]))
 	}
 }
 
@@ -441,6 +502,8 @@ func destroyPage() {
 	packShiftCombo = 0
 	shiftManualCombo = 0
 	overviewMetric = 0
+	currentTableTop = 170
+	currentLogTop = 170
 }
 func static(text string, x, y, w, h int, bold bool) uintptr {
 	c := create("STATIC", text, WS_CHILD|WS_VISIBLE|SS_LEFT, x, y, w, h, mainWnd, 0)
@@ -550,6 +613,7 @@ func compare(a, b any, k colKind) int {
 }
 func renderTable(t core.Table, top int) {
 	start := time.Now()
+	currentTableTop = top
 	var rc RECT
 	pGetClientRect.Call(mainWnd, uintptr(unsafe.Pointer(&rc)))
 	w := int(rc.Right) - 48
@@ -624,7 +688,6 @@ func selectedRow() ([]any, bool) {
 }
 
 func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
-	uiHeartbeat.Store(time.Now().UnixNano())
 	defer func() {
 		if v := recover(); v != nil {
 			logEvent("ERROR", "UI_PANIC", "message", fmt.Sprint(v), "stack", string(debug.Stack()))
@@ -642,7 +705,7 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
 		loadCredentials()
 		lastTelemetry = time.Now()
 		logEvent("INFO", "APP_START", "version", appVersion)
-		logRuntimeSnapshot("APP_STATE_START")
+		go logRuntimeSnapshot("APP_STATE_START")
 		renderPage(currentPage)
 		pSetTimer.Call(hwnd, TIMER_METRICS, 2000, 0)
 		go checkUpdateQuiet()
@@ -684,10 +747,10 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
 
 	case WM_TIMER:
 		if wParam == TIMER_METRICS {
-			if currentPage == ID_NAV_OVERVIEW { renderOverviewMetrics() }
+			if currentPage == ID_NAV_OVERVIEW { requestOverviewMetrics() }
 			if time.Since(lastTelemetry) >= 30*time.Second {
 				lastTelemetry = time.Now()
-				logRuntimeSnapshot("PERF_SAMPLE")
+				go logRuntimeSnapshot("PERF_SAMPLE")
 			}
 			return 0
 		}
@@ -708,9 +771,26 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
 		layout()
 		return 0
 
+	case WM_APP_PING:
+		uiPongSeq.Store(uint64(wParam))
+		return 0
+
+	case WM_APP_METRICS:
+		metricMu.Lock()
+		text := metricText
+		metricMu.Unlock()
+		if currentPage == ID_NAV_OVERVIEW && overviewMetric != 0 { setText(overviewMetric, text) }
+		return 0
+
+	case WM_APP_LOGTEXT:
+		pendingLogMu.Lock()
+		text := pendingLogText
+		pendingLogMu.Unlock()
+		if currentPage == ID_NAV_LOG && logEdit != 0 { setText(logEdit, text) }
+		return 0
+
 	case WM_DESTROY:
 		pKillTimer.Call(hwnd, TIMER_METRICS)
-		logRuntimeSnapshot("APP_STATE_EXIT")
 		logEvent("INFO", "APP_EXIT")
 		flushLogs(1200 * time.Millisecond)
 		pPostQuit.Call(0)
@@ -722,23 +802,23 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
 
 func createShell() {
 	fontNormal, _, _ = pCreateFont.Call(18, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI"))))
-	fontSmall, _, _ = pCreateFont.Call(16, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI"))))
-	fontBold, _, _ = pCreateFont.Call(20, 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI Semibold"))))
+	fontSmall, _, _ = pCreateFont.Call(15, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI"))))
+	fontBold, _, _ = pCreateFont.Call(21, 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI Semibold"))))
 
-	headerText = create("STATIC", appName+"  ·  "+appVersion, WS_CHILD|WS_VISIBLE|SS_LEFT, 24, 12, 650, 30, mainWnd, 0)
+	headerText = create("STATIC", "SUPRA PRODUCTIVITY   ·   "+appVersion, WS_CHILD|WS_VISIBLE|SS_LEFT, 24, 15, 720, 30, mainWnd, 0)
 	setFont(headerText, fontBold)
-	statusText = create("STATIC", "Sẵn sàng", WS_CHILD|WS_VISIBLE|SS_LEFT, 690, 15, 420, 24, mainWnd, 0)
-	setFont(statusText, fontSmall)
+	statusText = create("STATIC", "● Sẵn sàng", WS_CHILD|WS_VISIBLE|SS_LEFT, 760, 18, 420, 24, mainWnd, 0)
+	setFont(statusText, fontNormal)
 
-	updateButton = create("BUTTON", "CẬP NHẬT", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 0, 10, 110, 32, mainWnd, ID_UPDATE)
+	updateButton = create("BUTTON", "CẬP NHẬT", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 0, 12, 110, 34, mainWnd, ID_UPDATE)
 	setFont(updateButton, fontSmall)
-	syncButton = create("BUTTON", "ĐỒNG BỘ", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 0, 10, 120, 32, mainWnd, ID_SYNC)
+	syncButton = create("BUTTON", "ĐỒNG BỘ", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 0, 12, 120, 34, mainWnd, ID_SYNC)
 	setFont(syncButton, fontSmall)
 
 	for i, id := range navOrder {
 		style := uint32(WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTORADIOBUTTON|BS_PUSHLIKE)
 		if i == 0 { style |= WS_GROUP }
-		b := create("BUTTON", navLabels[id], style, 0, 0, 140, 38, mainWnd, uintptr(id))
+		b := create("BUTTON", navLabels[id], style, 0, 0, 140, 40, mainWnd, uintptr(id))
 		setFont(b, fontSmall)
 		nav[id] = b
 	}
@@ -749,33 +829,34 @@ func layout() {
 	pGetClientRect.Call(mainWnd, uintptr(unsafe.Pointer(&rc)))
 	w, h := int(rc.Right), int(rc.Bottom)
 	if w <= 0 || h <= 0 { return }
+	windowWidth.Store(int64(w))
+	windowHeight.Store(int64(h))
 
-	move(headerText, 24, 12, maxInt(360, w-790), 30)
-	move(statusText, maxInt(380, w-720), 15, 430, 24)
-	move(updateButton, maxInt(20, w-250), 10, 105, 32)
-	move(syncButton, maxInt(130, w-138), 10, 118, 32)
+	move(headerText, 24, 15, maxInt(420, w-790), 30)
+	move(statusText, maxInt(520, w-740), 18, 430, 24)
+	move(updateButton, maxInt(20, w-252), 12, 108, 34)
+	move(syncButton, maxInt(132, w-136), 12, 120, 34)
 
-	navY := h - 54
+	navY := h - 56
 	left, gap := 12, 5
 	avail := w - left*2 - gap*(len(navOrder)-1)
 	bw := avail / len(navOrder)
-	if bw < 92 { bw = 92 }
+	if bw < 96 { bw = 96 }
 	for i, id := range navOrder {
-		move(nav[id], left+i*(bw+gap), navY, bw, 38)
+		move(nav[id], left+i*(bw+gap), navY, bw, 40)
 	}
 
 	if tableWnd != 0 {
-		top := 145
-		move(tableWnd, 24, top, maxInt(760, w-48), maxInt(220, navY-top-12))
+		move(tableWnd, 24, currentTableTop, maxInt(760, w-48), maxInt(220, navY-currentTableTop-14))
 	}
 	if logEdit != 0 {
-		move(logEdit, 24, 145, maxInt(760, w-48), maxInt(220, navY-157))
+		move(logEdit, 24, currentLogTop, maxInt(760, w-48), maxInt(220, navY-currentLogTop-14))
 	}
 }
 
 func pageTitle(title, sub string) {
-	static(title, 24, 52, 520, 28, true)
-	static(sub, 24, 80, 1180, 24, false)
+	static(title, 24, 62, 620, 30, true)
+	static(sub, 24, 94, 1280, 22, false)
 }
 
 func renderPage(id int) {
@@ -816,86 +897,145 @@ func renderPage(id int) {
 }
 
 func renderOverview() {
-	pageTitle("TỔNG QUAN", "Vận hành, dữ liệu live và sức khoẻ laptop/ứng dụng theo thời gian thực")
-	liveMu.RLock(); ls := live; liveMu.RUnlock()
-	static(fmt.Sprintf("Pick: %d     Pack: %d     Phân ca: %d", len(ls.Pick.Rows), len(ls.Pack.Rows), len(ls.Shift.Rows)), 24, 120, 900, 30, true)
-	static("HỆ THỐNG & HIỆU NĂNG", 24, 175, 400, 28, true)
-	overviewMetric = static("Đang đo…", 24, 215, 1000, 28, false)
-	renderOverviewMetrics()
-	static("Dữ liệu được giữ cục bộ. GitHub/public Internet lỗi không làm dừng nghiệp vụ nội bộ.", 24, 345, 1000, 24, false)
+	pageTitle("TỔNG QUAN", "Tình trạng vận hành, dữ liệu và hiệu năng ứng dụng.")
+	liveMu.RLock()
+	ls := live
+	liveMu.RUnlock()
+	w, _ := clientSize()
+	cardW := (w - 72) / 2
+	if cardW < 520 { cardW = 520 }
+
+	groupBox("SẢN LƯỢNG HIỆN TẠI", 24, 126, cardW, 142)
+	static(fmt.Sprintf("PICK   %d", len(ls.Pick.Rows)), 48, 164, 180, 30, true)
+	static(fmt.Sprintf("PACK   %d", len(ls.Pack.Rows)), 250, 164, 180, 30, true)
+	static(fmt.Sprintf("PHÂN CA   %d", len(ls.Shift.Rows)), 452, 164, 220, 30, true)
+	static(fmt.Sprintf("ĐANG LẤY HÀNG   %d", len(ls.Active.Rows)), 48, 208, 260, 26, false)
+
+	x2 := 48 + cardW
+	groupBox("HỆ THỐNG", x2, 126, cardW, 142)
+	overviewMetric = static("Đang đo hiệu năng…", x2+24, 164, cardW-48, 28, false)
+	static("Dữ liệu hợp lệ được giữ lại khi mạng hoặc dịch vụ tạm thời lỗi.", x2+24, 208, cardW-48, 24, false)
+	requestOverviewMetrics()
+
+	groupBox("TRẠNG THÁI ĐỒNG BỘ", 24, 286, w-48, 104)
+	lastSync := "Chưa đồng bộ trong phiên này"
+	if !ls.LastSync.IsZero() { lastSync = ls.LastSync.Format("02/01/2006 15:04:05") }
+	static("Lần đồng bộ: "+lastSync, 48, 322, 420, 24, false)
+	route := ls.Route
+	if route == "" { route = "Chưa xác định" }
+	static("Kênh dữ liệu: "+route, 500, 322, 400, 24, false)
+	if ls.LastError != "" {
+		static("Lỗi gần nhất: "+ls.LastError, 48, 352, w-96, 24, false)
+	} else {
+		static("Trạng thái: Không ghi nhận lỗi đồng bộ.", 48, 352, w-96, 24, false)
+	}
 }
+
 func renderOverviewMetrics() {
-	if currentPage != ID_NAV_OVERVIEW { return }
-	var ms MEMORYSTATUSEX
-	ms.Length = uint32(unsafe.Sizeof(ms))
-	pGlobalMemory.Call(uintptr(unsafe.Pointer(&ms)))
-	var rm runtime.MemStats; runtime.ReadMemStats(&rm)
-	used := ms.TotalPhys - ms.AvailPhys
-	txt := fmt.Sprintf("RAM laptop: %.1f / %.1f GB (%.0f%%)     RAM Go heap: %.1f MB     Goroutine: %d", float64(used)/1e9, float64(ms.TotalPhys)/1e9, float64(ms.MemoryLoad), float64(rm.Alloc)/1024/1024, runtime.NumGoroutine())
-	if overviewMetric != 0 { setText(overviewMetric, txt) }
+	requestOverviewMetrics()
 }
+
 func renderActive() {
-	pageTitle("ĐANG LẤY HÀNG", "Lọc trạng thái áp dụng ngay; nhấp đúp dòng để xem chi tiết.")
-	static("Trạng thái", 24, 112, 75, 24, false)
-	activeCombo = combo(ID_ACTIVE_STATUS, []string{"Tất cả", "Đang lấy", "Quá thời gian", "Hoàn thành"}, settings.Business.ActiveStatus, 230, 106, 150, 200)
-	liveMu.RLock(); t := live.Active; liveMu.RUnlock()
-	renderTable(filterActive(t, settings.Business.ActiveStatus), 145)
+	pageTitle("ĐANG LẤY HÀNG", "Theo dõi tiến độ hiện tại; nhấp đúp một dòng để xem chi tiết.")
+	groupBox("BỘ LỌC", 24, 124, 520, 66)
+	static("Trạng thái", 46, 151, 85, 22, false)
+	activeCombo = combo(ID_ACTIVE_STATUS, []string{"Tất cả", "Đang lấy", "Quá thời gian", "Hoàn thành"}, settings.Business.ActiveStatus, 142, 144, 180, 200)
+	liveMu.RLock()
+	t := live.Active
+	liveMu.RUnlock()
+	renderTable(filterActive(t, settings.Business.ActiveStatus), 204)
 }
+
 func renderPick() {
-	pageTitle("PICK", "Target, tốc độ, khoán/chẵn-lẻ và kiểm tra 1C1L ở đúng màn nghiệp vụ.")
-	static("Ca", 24, 112, 25, 22, false)
-	pickShiftCombo = combo(ID_PICK_SHIFT, []string{"Tất cả", "Ca 1", "Ca 2", "Ca HC"}, settings.Business.PickShift, 180, 106, 100, 180)
-	checkbox(ID_PICK_DEDUCT, "Khấu trừ SKU", 300, 108, 120, 24, settings.Business.PickDeductSKU)
-	checkbox(ID_PICK_REQUIRE, "Kiểm tra đủ chẵn", 430, 108, 140, 24, settings.Business.PickRequireEven)
-	checkbox(ID_PICK_ALLSITE, "Hiện tất cả Site", 580, 108, 130, 24, settings.Business.ShowAllSite)
-	checkbox(ID_PICK_1C1L, "Bật 1 chẵn 1 lẻ", 720, 108, 140, 24, settings.Business.Enable1C1L)
-	checkbox(ID_PICK_INCOMPLETE, "Chỉ hiện chưa đủ chẵn", 870, 108, 170, 24, settings.Business.ShowIncompleteEven)
-	checkbox(ID_PICK_1C1LERR, "Chỉ hiện lỗi 1C1L", 1050, 108, 150, 24, settings.Business.Show1C1LErrors)
-	liveMu.RLock(); t := live.Pick; liveMu.RUnlock()
-	renderTable(t, 145)
+	pageTitle("PICK", "Theo dõi năng suất, target và các điều kiện kiểm tra chẵn/lẻ.")
+	w, _ := clientSize()
+	groupBox("BỘ LỌC & QUY TẮC", 24, 124, w-48, 78)
+	static("Ca", 46, 153, 28, 22, false)
+	pickShiftCombo = combo(ID_PICK_SHIFT, []string{"Tất cả", "Ca 1", "Ca 2", "Ca HC"}, settings.Business.PickShift, 82, 146, 112, 180)
+	checkbox(ID_PICK_DEDUCT, "Khấu trừ SKU", 220, 149, 125, 24, settings.Business.PickDeductSKU)
+	checkbox(ID_PICK_REQUIRE, "Kiểm tra đủ chẵn", 360, 149, 145, 24, settings.Business.PickRequireEven)
+	checkbox(ID_PICK_ALLSITE, "Tất cả Site", 520, 149, 105, 24, settings.Business.ShowAllSite)
+	checkbox(ID_PICK_1C1L, "1 chẵn 1 lẻ", 640, 149, 115, 24, settings.Business.Enable1C1L)
+	checkbox(ID_PICK_INCOMPLETE, "Chưa đủ chẵn", 770, 149, 130, 24, settings.Business.ShowIncompleteEven)
+	checkbox(ID_PICK_1C1LERR, "Lỗi 1C1L", 915, 149, 110, 24, settings.Business.Show1C1LErrors)
+	liveMu.RLock()
+	t := live.Pick
+	liveMu.RUnlock()
+	renderTable(t, 216)
 }
+
 func renderPack() {
-	pageTitle("PACK", "Chỉ hiển thị theo ca; chọn là áp dụng ngay.")
-	static("Hiển thị ca", 24, 112, 85, 22, false)
-	packShiftCombo = combo(ID_PACK_SHIFT, []string{"Tất cả", "Ca 1", "Ca 2", "Ca HC"}, settings.Business.PackShift, 240, 106, 120, 180)
-	liveMu.RLock(); t := live.Pack; liveMu.RUnlock()
-	renderTable(t, 145)
+	pageTitle("PACK", "Theo dõi năng suất đóng gói theo ca.")
+	groupBox("BỘ LỌC", 24, 124, 430, 66)
+	static("Ca hiển thị", 46, 151, 92, 22, false)
+	packShiftCombo = combo(ID_PACK_SHIFT, []string{"Tất cả", "Ca 1", "Ca 2", "Ca HC"}, settings.Business.PackShift, 148, 144, 132, 180)
+	liveMu.RLock()
+	t := live.Pack
+	liveMu.RUnlock()
+	renderTable(t, 204)
 }
+
 func renderShift() {
-	pageTitle("PHÂN CA", "Chọn một dòng, sau đó chọn Tự động / Ca 1 / Ca 2 / Ca HC.")
-	static("Phân ca thủ công", 24, 112, 120, 22, false)
-	shiftManualCombo = combo(ID_SHIFT_MANUAL, []string{"Tự động", "Ca 1", "Ca 2", "Ca HC"}, "Tự động", 280, 106, 130, 180)
-	liveMu.RLock(); t := live.Shift; liveMu.RUnlock()
-	renderTable(t, 145)
+	pageTitle("PHÂN CA", "Phân ca tự động và điều chỉnh thủ công khi cần.")
+	groupBox("ĐIỀU CHỈNH CA", 24, 124, 500, 66)
+	static("Phân ca", 46, 151, 70, 22, false)
+	shiftManualCombo = combo(ID_SHIFT_MANUAL, []string{"Tự động", "Ca 1", "Ca 2", "Ca HC"}, "Tự động", 128, 144, 150, 180)
+	liveMu.RLock()
+	t := live.Shift
+	liveMu.RUnlock()
+	renderTable(t, 204)
 }
+
 func renderUserPDA() {
-	pageTitle("USER / PDA", "Dữ liệu nhân sự live/local; không có dữ liệu cá nhân nào được đóng gói trong bản public.")
-	liveMu.RLock(); t := live.UserPDA; liveMu.RUnlock()
+	pageTitle("USER / PDA", "Danh sách user, nhân sự và thông tin phục vụ vận hành.")
+	liveMu.RLock()
+	t := live.UserPDA
+	liveMu.RUnlock()
 	if len(t.Headers) == 0 {
 		t = core.Table{Headers: []string{"Họ và tên", "Mã nhân viên", "User", "Nhà cung cấp", "Site", "Tuổi nghề"}}
 	}
-	renderTable(t, 125)
+	renderTable(t, 128)
 }
+
 func renderLog() {
-	pageTitle("LOG", "Log vận hành, hiệu năng, UI, đồng bộ, mạng và lỗi; tự loại thông tin nhạy cảm.")
-	button(ID_LOG_OPEN, "MỞ THƯ MỤC LOG", 24, 108, 170, 32)
-	button(ID_LOG_EXPORT, "XUẤT LOG...", 204, 108, 135, 32)
-	static("Màn hình chỉ hiển thị log gần nhất để giữ UI nhẹ. File xuất vẫn gom toàn bộ log.", 354, 113, 820, 24, false)
-	logEdit = create("EDIT", readLogTail(350), WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY, 24, 145, 1200, 560, mainWnd, 0)
+	pageTitle("LOG", "Nhật ký vận hành và lỗi đã được loại thông tin nhạy cảm.")
+	w, _ := clientSize()
+	groupBox("CÔNG CỤ LOG", 24, 124, w-48, 72)
+	button(ID_LOG_OPEN, "MỞ THƯ MỤC LOG", 46, 149, 178, 34)
+	button(ID_LOG_EXPORT, "XUẤT LOG...", 238, 149, 138, 34)
+	static("File xuất gồm toàn bộ log cần thiết để phân tích lỗi; màn hình chỉ tải phần gần nhất.", 398, 154, w-440, 22, false)
+	currentLogTop = 210
+	logEdit = create("EDIT", "Đang tải log gần nhất…", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY, 24, currentLogTop, w-48, 560, mainWnd, 0)
 	setFont(logEdit, fontSmall)
 	addPage(logEdit)
+	loadLogTailAsync()
 }
 
 func renderSettings() {
-	pageTitle("THIẾT LẬP", "Chỉ quản lý phiên/token Dashboard. Nghiệp vụ đặt tại đúng màn Pick/Pack/Phân ca.")
-	static("PHIÊN DASHBOARD · DÁN cURL (BASH)", 24, 120, 420, 24, true)
-	settingsCurl = create("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL, 24, 150, 720, 120, mainWnd, 0)
-	setFont(settingsCurl, fontNormal); addPage(settingsCurl)
-	button(ID_CURL_IMPORT, "NHẬN CẤU HÌNH", 24, 282, 150, 32)
-	button(ID_SECRET_TOGGLE, "HIỆN / ẨN", 312, 282, 120, 32)
-	button(ID_NET_TEST, "KIỂM TRA", 442, 282, 120, 32)
-	settingsSummary = static(credentialSummary(), 24, 330, 900, 120, false)
-	static("Repo public không chứa endpoint nội bộ, credential, log thô hoặc dữ liệu nhân sự. Runtime profile nằm cục bộ theo Windows user.", 24, 465, 1000, 44, false)
+	pageTitle("THIẾT LẬP", "Quản lý phiên Dashboard và kiểm tra kết nối.")
+	w, _ := clientSize()
+	leftW := (w - 72) * 3 / 5
+	if leftW < 680 { leftW = 680 }
+	rightX := 48 + leftW
+	rightW := w - rightX - 24
+	if rightW < 420 { rightW = 420 }
+
+	groupBox("PHIÊN DASHBOARD", 24, 124, leftW, 300)
+	static("Dán cURL (bash)", 46, 154, 180, 22, true)
+	static("Dán lệnh cURL của Dashboard vào ô dưới, sau đó bấm Nhận cấu hình.", 46, 180, leftW-44, 22, false)
+	settingsCurl = create("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL, 46, 214, leftW-44, 126, mainWnd, 0)
+	setFont(settingsCurl, fontNormal)
+	addPage(settingsCurl)
+	button(ID_CURL_IMPORT, "NHẬN CẤU HÌNH", 46, 354, 160, 34)
+	button(ID_SECRET_TOGGLE, "HIỆN / ẨN", 220, 354, 120, 34)
+	button(ID_NET_TEST, "KIỂM TRA KẾT NỐI", 354, 354, 176, 34)
+
+	groupBox("TRẠNG THÁI PHIÊN", rightX, 124, rightW, 300)
+	settingsSummary = static(credentialSummary(), rightX+24, 160, rightW-48, 150, false)
+	static("Thông tin nhạy cảm được che khi hiển thị và lưu cục bộ theo Windows user.", rightX+24, 328, rightW-48, 48, false)
+
+	groupBox("LƯU Ý", 24, 442, w-48, 92)
+	static("Thiết lập chỉ dành cho kết nối. Các tùy chọn nghiệp vụ được đặt ngay tại màn Pick, Pack và Phân ca.", 46, 476, w-92, 24, false)
 }
 
 func filterActive(t core.Table, status string) core.Table {
@@ -938,6 +1078,7 @@ func handleDoubleClick(n *NMLISTVIEW) {
 }
 
 func handleCommand(id, code int, source uintptr) {
+	if id == 0 { return }
 	logEvent("INFO", "UI_COMMAND", "id", strconv.Itoa(id), "code", strconv.Itoa(code), "page", strconv.Itoa(currentPage))
 	if id >= ID_NAV_OVERVIEW && id <= ID_NAV_SETTINGS {
 		if id != currentPage { renderPage(id) }
@@ -1755,8 +1896,6 @@ func logRuntimeSnapshot(event string) {
 	pGlobalMemory.Call(uintptr(unsafe.Pointer(&ms)))
 	var rm runtime.MemStats
 	runtime.ReadMemStats(&rm)
-	var rc RECT
-	pGetClientRect.Call(mainWnd, uintptr(unsafe.Pointer(&rc)))
 	liveMu.RLock()
 	ls := live
 	liveMu.RUnlock()
@@ -1771,8 +1910,8 @@ func logRuntimeSnapshot(event string) {
 		"heap_sys_mb", fmt.Sprintf("%.2f", float64(rm.HeapSys)/1024/1024),
 		"goroutines", strconv.Itoa(runtime.NumGoroutine()),
 		"page", strconv.Itoa(currentPage),
-		"window_w", strconv.Itoa(int(rc.Right)),
-		"window_h", strconv.Itoa(int(rc.Bottom)),
+		"window_w", strconv.FormatInt(windowWidth.Load(), 10),
+		"window_h", strconv.FormatInt(windowHeight.Load(), 10),
 		"credential_present", strconv.FormatBool(sessionReady()),
 		"runtime_profile_present", strconv.FormatBool(len(profile.Bindings) > 0),
 		"profile_binding_count", strconv.Itoa(len(profile.Bindings)),
@@ -1807,9 +1946,14 @@ func chooseLogExportPath() (string, bool) {
 }
 
 func startLogExport() {
+	if !logExportBusy.CompareAndSwap(false, true) {
+		setStatus("Cửa sổ xuất LOG đang mở.")
+		return
+	}
 	setStatus("Đang mở cửa sổ chọn nơi lưu LOG…")
 	logEvent("INFO", "LOG_EXPORT_DIALOG_OPEN")
 	go func() {
+		defer logExportBusy.Store(false)
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		path, ok := chooseLogExportPath()
@@ -2145,11 +2289,13 @@ func checkUpdateInteractive() {
 }
 
 func main() {
+	// Win32 windows, child controls and the message pump are thread-affine.
+	// Keep the complete UI lifetime on one OS thread.
+	runtime.LockOSThread()
+
 	pInitCommon.Call()
 	ensureDirs()
 	go logWriter()
-	uiHeartbeat.Store(time.Now().UnixNano())
-	go uiWatchdog()
 
 	hInst, _, _ := kernel32.NewProc("GetModuleHandleW").Call(0)
 	cls := ptr("SupraProductivityWindow")
@@ -2180,11 +2326,16 @@ func main() {
 	pShowWindow.Call(hwnd, SW_SHOW)
 	fitWindowToWorkArea()
 	pUpdateWindow.Call(hwnd)
+	go uiWatchdog()
 
 	var msg MSG
 	for {
 		r, _, _ := pGetMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
-		if int32(r) <= 0 { break }
+		if int32(r) == -1 {
+			logEvent("ERROR", "GET_MESSAGE_FAILED")
+			break
+		}
+		if r == 0 { break }
 		pTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
 		pDispatchMessage.Call(uintptr(unsafe.Pointer(&msg)))
 	}
