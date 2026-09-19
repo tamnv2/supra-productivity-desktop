@@ -80,3 +80,9 @@ Updated: 2026-09-19
 - Periodic memory/runtime collection and Log-tail loading are moved off the UI thread.
 - **Status:** fixed in test.5 candidate; owner runtime verification required.
 
+### Missing local live source configuration
+- test.5 could store Dashboard credentials but still required a separate encrypted runtime profile, causing `SYNC_PROFILE_MISSING` even when `credential_present=true`.
+- This was an integration gap, not an Owner setup error.
+- test.6 moves the source request configuration into the application itself with explicit **Sản lượng** and **Đang lấy hàng** cURL capture.
+- **Status:** fixed in test.6 candidate; Owner must configure each actual source once on the target Windows user.
+
