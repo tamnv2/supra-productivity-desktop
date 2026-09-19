@@ -85,7 +85,7 @@ func TestParseActiveJSONWithFieldMap(t *testing.T) {
 	table, err := ParseActiveJSON(data, b)
 	if err != nil { t.Fatal(err) }
 	if len(table.Rows) != 1 { t.Fatalf("rows=%d", len(table.Rows)) }
-	if table.Rows[0][5] != "picker01" { t.Fatalf("user=%v", table.Rows[0][5]) }
+	if table.Rows[0][6] != "picker01" { t.Fatalf("user=%v", table.Rows[0][6]) }
 	if got, ok := table.Rows[0][14].(float64); !ok || got != 0.5 {
 		t.Fatalf("progress=%#v", table.Rows[0][14])
 	}
