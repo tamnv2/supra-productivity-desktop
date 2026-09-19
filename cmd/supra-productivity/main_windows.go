@@ -42,6 +42,7 @@ const (
 	WS_HSCROLL                   = 0x00100000
 	WM_CREATE                    = 0x0001
 	WM_DESTROY                   = 0x0002
+	WM_CLOSE                     = 0x0010
 	WM_SIZE                      = 0x0005
 	WM_COMMAND                   = 0x0111
 	WM_NOTIFY                    = 0x004E
@@ -195,6 +196,17 @@ type appSettings struct {
 	DataFolder string                `json:"data_folder"`
 	Business   core.BusinessSettings `json:"business"`
 }
+type runtimeBinding struct {
+	Method  string            `json:"method"`
+	URL     string            `json:"url"`
+	Body    string            `json:"body,omitempty"`
+	Headers map[string]string `json:"headers,omitempty"`
+}
+type runtimeProfile struct {
+	SchemaVersion int                       `json:"schema_version"`
+	ProfileID     string                    `json:"profile_id"`
+	Bindings      map[string]runtimeBinding `json:"bindings"`
+}
 type liveState struct {
 	Pick, Pack, Shift, Active core.Table
 	Payroll                   []core.PayrollRow
@@ -270,6 +282,7 @@ var (
 	currentTable                                                                                      *tableModel
 	settings                                                                                          appSettings
 	creds                                                                                             credentials
+	profile                                                                                           runtimeProfile
 	revealSecrets                                                                                     bool
 	live                                                                                              liveState
 	liveMu                                                                                            sync.RWMutex
@@ -474,7 +487,7 @@ func selectedRow() ([]any, bool) {
 func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
 	case WM_CREATE:
-		mainWnd = hwnd; createShell(); loadSettings(); loadCredentials()
+		mainWnd = hwnd; createShell(); loadSettings(); provisionRuntimeProfile(); loadRuntimeProfile(); loadCredentials()
 		logEvent("INFO", "APP_START", "version", appVersion)
 		renderPage(currentPage); pSetTimer.Call(hwnd, TIMER_METRICS, 2000, 0); go checkUpdateQuiet(); return 0
 	case WM_SIZE:
@@ -743,8 +756,13 @@ func startSync() {
 			logEvent("ERROR", "SYNC_PROBE_FAILED", "error", err.Error())
 			return
 		}
-		setStatus("Phiên hợp lệ. Nguồn live nghiệp vụ được provision cục bộ, không lưu trong repo public.")
-		logEvent("INFO", "SYNC_SESSION_OK")
+		if len(profile.Bindings) == 0 {
+			setStatus("Phiên hợp lệ; chưa có runtime profile live cục bộ.")
+			logEvent("WARN", "SYNC_PROFILE_MISSING")
+			return
+		}
+		setStatus(fmt.Sprintf("Phiên hợp lệ · runtime profile %s · %d binding(s).", profile.ProfileID, len(profile.Bindings)))
+		logEvent("INFO", "SYNC_SESSION_OK", "profile_id", sanitizeProfileID(profile.ProfileID), "binding_count", strconv.Itoa(len(profile.Bindings)))
 	}()
 }
 
