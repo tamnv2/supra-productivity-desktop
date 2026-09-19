@@ -38,16 +38,17 @@ func BuildReports(rows []PayrollRow, from, to time.Time) ReportSet {
 		return emptyReports()
 	}
 
-	robotReferences := map[string]bool{}
+	packUserByReference := map[string]string{}
 	for _, r := range rows {
 		if !isPackJob(r.Job) || !inDateRange(r.End, from, to) {
 			continue
 		}
-		if strings.EqualFold(strings.TrimSpace(r.User), "robotics") {
-			ref := strings.TrimSpace(r.Reference)
-			if ref != "" {
-				robotReferences[ref] = true
-			}
+		ref := strings.TrimSpace(r.Reference)
+		if ref == "" {
+			continue
+		}
+		if _, exists := packUserByReference[ref]; !exists {
+			packUserByReference[ref] = strings.TrimSpace(r.User)
 		}
 	}
 
@@ -75,7 +76,7 @@ func BuildReports(rows []PayrollRow, from, to time.Time) ReportSet {
 				d.PickOddPieces += r.Pieces
 				d.PickOddTime += r.Duration
 			}
-			if ref := strings.TrimSpace(r.Reference); ref != "" && robotReferences[ref] {
+			if ref := strings.TrimSpace(r.Reference); ref != "" && strings.EqualFold(packUserByReference[ref], "robotics") {
 				d.PickAutoPieces += r.Pieces
 			}
 		case isPackJob(r.Job):
