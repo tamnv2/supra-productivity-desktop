@@ -4,6 +4,12 @@ All entries must be sanitized for a public repository.
 
 ## Unreleased
 
+### Release automation
+- Added file-driven owner-test prerelease publishing through `release/test-version.txt`.
+- Added file-driven accepted-stable publishing through `release/stable-version.txt`.
+- Published GitHub prerelease `v1.3.1-test.1` from canonical source; candidate publish and main portable build both passed.
+
+
 ### GitHub build verification
 - Repaired two source-reconstruction defects found by real PR CI: DPAPI credential load closure/unmarshal and latest-release URL construction.
 - Refined public-source guard to avoid false positives on credential variable references while still rejecting quoted credential literals.
