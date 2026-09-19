@@ -52,7 +52,7 @@ jobs:
         run: |
           python scripts/validate_project_state.py
           python scripts/validate_public_repo.py
-          go test ./internal/core
+          go test ./...
 
       - name: Build Windows x64
         shell: bash
