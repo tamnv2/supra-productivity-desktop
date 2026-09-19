@@ -5,9 +5,9 @@
   "repository": "tamnv2/supra-productivity-desktop",
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
-  "current_version": "v1.3.2-test.1",
-  "current_phase": "stable-v13-rebaseline",
-  "current_status": "recovered_v13_baseline_candidate_test1_requested",
+  "current_version": "v1.3.2-test.2",
+  "current_phase": "owner-runtime-updater-verification",
+  "current_status": "v13_rebaseline_test_pair_published_owner_verification_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -68,14 +68,18 @@
     "Restored recovered V1.3 business defaults and calculations including shift rules, per-DO SKU deduction, minute-based productivity speed, 1921 site filter and 1C1L calculation.",
     "Restored V1.3 payroll/active parsing shape while retaining public-safe runtime-profile endpoint binding and DPAPI session storage.",
     "Rebased the desktop shell from the pre-test.2 left-navigation implementation and retained non-blocking local logging.",
-    "Extended GitHub updater so prerelease test builds can discover and securely stage newer test releases with SHA256 verification, backup and restore-on-replacement-failure."
+    "Extended GitHub updater so prerelease test builds can discover and securely stage newer test releases with SHA256 verification, backup and restore-on-replacement-failure.",
+    "PR #3 rebaseline CI passed: Project State Guard run 35419657684 and Build Windows Portable run 35419657703.",
+    "Merged the recovered V1.3 rebaseline to canonical main at commit ee377fd382cc1712f9cd14e6ade93db51cc77657.",
+    "Published v1.3.2-test.1 from canonical source.",
+    "Published identical-source v1.3.2-test.2 as the real GitHub updater target."
   ],
-  "current_task": "Build and verify the desktop app from the recovered stable V1.3 source behavior, then prove GitHub self-update using a test.1 -> test.2 candidate pair.",
-  "next_action": "Run PR CI for v1.3.2-test.1. If all guards/tests/vet/Windows build pass, merge and publish test.1; then publish identical-source v1.3.2-test.2 so the owner can verify in-app GitHub update from test.1 to test.2.",
+  "current_task": "Owner runtime verification of the recovered V1.3 rebuild and real GitHub self-update from v1.3.2-test.1 to v1.3.2-test.2.",
+  "next_action": "Install/run v1.3.2-test.1 on the target laptop, verify baseline screens/data behavior, then click CẬP NHẬT. The app must detect v1.3.2-test.2, download and verify SHA256, back up the current EXE, replace it after exit, restart, and display v1.3.2-test.2. Do not resume feature changes until this passes.",
   "blockers": [
-    "GitHub PR CI/build must pass for the recovered V1.3 rebaseline.",
-    "Owner target-laptop runtime verification is required before any stable release.",
-    "The real updater replacement path must be verified by running v1.3.2-test.1 and updating to v1.3.2-test.2."
+    "Owner must verify v1.3.2-test.1 runtime behavior on the target Windows laptop.",
+    "Owner must verify the real in-app GitHub update path v1.3.2-test.1 -> v1.3.2-test.2.",
+    "Stable release remains blocked until explicit owner acceptance."
   ],
   "known_issues": [
     "The uploaded ZIP is a recovered/decompiled V1.3 source reconstruction rather than the original authoring repository; business behavior is reconstructed from the stable executable evidence.",
@@ -97,8 +101,9 @@
     "candidate_publish_workflow": "passed_run_35416300861",
     "main_build_after_candidate_request": "passed_run_35416300869",
     "v1.3.1-test.2": "superseded_by_owner_v13_rebaseline_request",
-    "v1.3.2-test.1": "pr_ci_pending",
-    "v1.3.2-test.2": "planned_updater_verification_target"
+    "v1.3.2-test.1": "published_ci_pass_updater_source",
+    "v1.3.2-test.2": "published_ci_pass_updater_target",
+    "updater_test1_to_test2": "owner_runtime_pending"
   },
   "security": {
     "public_repo": true,
@@ -139,10 +144,12 @@
     "stable_release": "pending_owner_acceptance",
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
-    "candidate_release": "v1.3.2-test.1",
-    "candidate_release_status": "requested_pr_ci_pending",
+    "candidate_release": "v1.3.2-test.2",
+    "candidate_release_status": "published",
     "candidate_publish_run_id": null,
-    "main_build_run_id": null
+    "main_build_run_id": null,
+    "pr_ci_state_guard_run_id": 35419657684,
+    "pr_ci_windows_build_run_id": 35419657703
   },
   "update_pipeline": {
     "latest_stable_release_check": "implemented",
@@ -155,7 +162,7 @@
     "manual_offline_package": "pending",
     "startup_health_rollback": "pending",
     "prerelease_channel_check": "implemented",
-    "test_pair_verification": "planned_v1.3.2-test.1_to_v1.3.2-test.2"
+    "test_pair_verification": "published_owner_runtime_pending"
   },
   "runtime_profile": {
     "public_schema": "documented",
