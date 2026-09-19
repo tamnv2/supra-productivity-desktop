@@ -53,8 +53,10 @@ func ExpandBinding(b Binding, now time.Time) Binding {
 	repl := map[string]string{
 		"{{TODAY_ISO}}": now.Format("2006-01-02"),
 		"{{TOMORROW_ISO}}": now.AddDate(0, 0, 1).Format("2006-01-02"),
+		"{{YESTERDAY_ISO}}": now.AddDate(0, 0, -1).Format("2006-01-02"),
 		"{{TODAY_DMY}}": now.Format("02/01/2006"),
 		"{{TOMORROW_DMY}}": now.AddDate(0, 0, 1).Format("02/01/2006"),
+		"{{YESTERDAY_DMY}}": now.AddDate(0, 0, -1).Format("02/01/2006"),
 		"{{NOW_ISO}}": now.Format(time.RFC3339),
 		"{{BUSINESS_DATE}}": now.Format("2006-01-02"),
 	}
