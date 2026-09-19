@@ -6,8 +6,8 @@
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
   "current_version": "v1.3.2-test.3",
-  "current_phase": "excel-ui-log-stability-fix",
-  "current_status": "candidate_branch_ready_pr_ci_pending",
+  "current_phase": "owner-test-candidate-publishing",
+  "current_status": "test3_merged_ci_pass_release_publish_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -72,10 +72,13 @@
     "PR #3 rebaseline CI passed: Project State Guard run 35419657684 and Build Windows Portable run 35419657703.",
     "Merged the recovered V1.3 rebaseline to canonical main at commit ee377fd382cc1712f9cd14e6ade93db51cc77657.",
     "Published v1.3.2-test.1 from canonical source.",
-    "Published identical-source v1.3.2-test.2 as the real GitHub updater target."
+    "Published identical-source v1.3.2-test.2 as the real GitHub updater target.",
+    "PR #4 passed Project State Guard run 35420791580.",
+    "PR #4 passed Windows Portable build run 35420791549 including tests, vet, cross-build, binary scan, packaging and artifact upload.",
+    "Merged Excel-like bottom navigation, unified Log and runtime stability candidate to main at e653ff0765124f4c009fded5be14c4ad0e1c7dcf."
   ],
-  "current_task": "Verify the Excel-like bottom-navigation, unified Log and runtime hang/maximized-window fixes.",
-  "next_action": "Run PR CI for v1.3.2-test.3. If PASS, merge and publish the owner-test candidate. Owner then verifies navigation responsiveness, always-maximized/minimize behavior, Log export Save As and sends the exported Log if any hang remains. Detailed Excel parity feature changes wait for Owner decisions in docs/EXCEL_PARITY_PROPOSAL.md.",
+  "current_task": "Publish and owner-test v1.3.2-test.3 with Excel-like bottom navigation, unified log and runtime stability fixes.",
+  "next_action": "Confirm v1.3.2-test.3 GitHub prerelease publication, then owner tests rapid tab switching, Pick/Pack/Phân ca controls, maximized/minimize behavior and XUẤT LOG. If a hang remains, use the exported unified Log to identify the blocking UI command/render/table operation.",
   "blockers": [
     "GitHub PR CI/build must pass for v1.3.2-test.3.",
     "Owner target-laptop verification is required for the reported hang.",
@@ -104,7 +107,7 @@
     "v1.3.2-test.1": "published_ci_pass_updater_source",
     "v1.3.2-test.2": "published_ci_pass_updater_target",
     "updater_test1_to_test2": "owner_runtime_pending",
-    "v1.3.2-test.3": "pr_ci_pending"
+    "v1.3.2-test.3": "pr_ci_pass_merged_publish_pending"
   },
   "security": {
     "public_repo": true,
@@ -146,11 +149,11 @@
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
     "candidate_release": "v1.3.2-test.3",
-    "candidate_release_status": "requested_pr_ci_pending",
+    "candidate_release_status": "publish_pending",
     "candidate_publish_run_id": null,
     "main_build_run_id": null,
-    "pr_ci_state_guard_run_id": 35419657684,
-    "pr_ci_windows_build_run_id": 35419657703
+    "pr_ci_state_guard_run_id": 35420791580,
+    "pr_ci_windows_build_run_id": 35420791549
   },
   "update_pipeline": {
     "latest_stable_release_check": "implemented",
