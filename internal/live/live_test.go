@@ -65,8 +65,8 @@ func TestParsePayrollXLSX(t *testing.T) {
 	if r.User != "picker01" || r.Pieces != 300 || r.SKU != 20 || r.Site != "1291" {
 		t.Fatalf("unexpected row: %#v", r)
 	}
-	if r.Duration != 1 {
-		t.Fatalf("duration must convert 60 minutes to 1 hour, got %v", r.Duration)
+	if r.Duration != 60 {
+		t.Fatalf("V1.3 duration must remain payroll minutes, got %v", r.Duration)
 	}
 }
 
@@ -86,8 +86,8 @@ func TestParseActiveJSONWithFieldMap(t *testing.T) {
 	if err != nil { t.Fatal(err) }
 	if len(table.Rows) != 1 { t.Fatalf("rows=%d", len(table.Rows)) }
 	if table.Rows[0][6] != "picker01" { t.Fatalf("user=%v", table.Rows[0][6]) }
-	if got, ok := table.Rows[0][14].(float64); !ok || got != 0.5 {
-		t.Fatalf("progress=%#v", table.Rows[0][14])
+	if got, ok := table.Rows[0][15].(float64); !ok || got != 0.5 {
+		t.Fatalf("progress=%#v", table.Rows[0][15])
 	}
 }
 
