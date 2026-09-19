@@ -100,3 +100,13 @@ Canonical record of explicit owner decisions. Newest explicit owner instruction 
 - Operator-facing status/messages use business names, not internal terms such as runtime profile/binding.
 - Public GitHub/release artifacts must still contain no private endpoints, tokens, raw logs or company data.
 
+## 2026-09-19 — single Dashboard source for production
+
+- Đang lấy hàng and Sản lượng use one Dashboard cURL/session; Owner must not configure them as two sources.
+- The application derives the current-picking request and payroll/productivity export request internally from that one session.
+- test.6 two-source setup is rejected.
+- Production processing must follow the Excel information flow: Sản lượng → Mapping-equivalent normalization → Phân ca → Pick/Pack.
+- User/PDA must be populated from the available employee/profile/device data and used to enrich production rows.
+- Site 1291 is the normal 1291 filter; the accidental 1921 condition in reconstructed code is invalid for this application.
+- Existing test.6 local configuration must migrate automatically when possible, without forcing Owner to paste the same cURL again.
+
