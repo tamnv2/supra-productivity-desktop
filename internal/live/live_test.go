@@ -31,6 +31,7 @@ func syntheticXLSX(t *testing.T) []byte {
 <c r="J1" t="inlineStr"><is><t>Thời gian thực hiện (Phút)</t></is></c>
 <c r="K1" t="inlineStr"><is><t>Tổng SKU đã thực hiện</t></is></c>
 <c r="L1" t="inlineStr"><is><t>Tổng sản lượng đã thực hiện (Pieces)</t></is></c>
+<c r="M1" t="inlineStr"><is><t>Mã Tham chiếu</t></is></c>
 </row>
 <row r="2">
 <c r="A2" t="inlineStr"><is><t>Pick</t></is></c>
@@ -45,6 +46,7 @@ func syntheticXLSX(t *testing.T) []byte {
 <c r="J2"><v>60</v></c>
 <c r="K2"><v>20</v></c>
 <c r="L2"><v>300</v></c>
+<c r="M2" t="inlineStr"><is><t>REF-1</t></is></c>
 </row>
 </sheetData></worksheet>`,
 	}
@@ -62,7 +64,7 @@ func TestParsePayrollXLSX(t *testing.T) {
 	if err != nil { t.Fatal(err) }
 	if len(rows) != 1 { t.Fatalf("rows=%d", len(rows)) }
 	r := rows[0]
-	if r.User != "picker01" || r.Pieces != 300 || r.SKU != 20 || r.Site != "1291" {
+	if r.User != "picker01" || r.Pieces != 300 || r.SKU != 20 || r.Site != "1291" || r.Reference != "REF-1" {
 		t.Fatalf("unexpected row: %#v", r)
 	}
 	if r.Duration != 60 {
@@ -153,5 +155,17 @@ func TestEnrichPayrollAndUserPDAFromActive(t *testing.T) {
 	if len(people.Rows) != 1 { t.Fatalf("people rows=%d", len(people.Rows)) }
 	if people.Rows[0][2] != "picker01" || people.Rows[0][6] != "PDA-07" {
 		t.Fatalf("people row=%#v", people.Rows[0])
+	}
+}
+
+
+func TestExpandBindingRange(t *testing.T) {
+	now := time.Date(2026, 9, 19, 8, 30, 0, 0, time.Local)
+	from := time.Date(2026, 9, 16, 0, 0, 0, 0, time.Local)
+	to := time.Date(2026, 9, 19, 0, 0, 0, 0, time.Local)
+	b := Binding{URL: "https://example.invalid/report?FromDate={{FROM_DATE_ISO}}&ToDate={{TO_DATE_ISO}}"}
+	got := ExpandBindingRange(b, now, from, to)
+	if got.URL != "https://example.invalid/report?FromDate=2026-09-16&ToDate=2026-09-19" {
+		t.Fatalf("url=%q", got.URL)
 	}
 }
