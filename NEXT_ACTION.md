@@ -2,48 +2,64 @@
 
 Updated: 2026-09-19
 
-## Current verified state
+## Verified state
 
-The canonical sanitized source is now in GitHub and the pull-request build has passed:
+GitHub is now the canonical source and build system.
 
-- project-state validation: PASS
-- public-repo sensitive-value guard: PASS
-- `go test ./...`: PASS
-- `go vet ./...`: PASS
-- Windows x64 cross-build: PASS
-- public binary scan: PASS
-- package + artifact upload: PASS
+Completed:
+- sanitized canonical source in `main`;
+- public-repo/state guards;
+- Go tests and vet;
+- Windows x64 GitHub build;
+- binary public scan;
+- Actions artifact packaging;
+- live runtime-profile binding;
+- GitHub update foundation;
+- automatic owner-test prerelease workflow;
+- automatic accepted-stable release workflow.
 
-Verified CI:
-- workflow run: `35412096189`
-- artifact: `SupraProductivity-windows-x64`
-- artifact id: `10574174267`
-- artifact digest: `sha256:1103ef127b603408516979bdfbe8c87c3164b4562ef4ab1deee6a938f953bf8c`
+### Published owner-test candidate
+
+`v1.3.1-test.1`
+
+GitHub Actions:
+- candidate publish run: `35412269300` — PASS
+- main portable build run: `35412269285` — PASS
+
+Release contains:
+- `SupraProductivity.exe`
+- `SHA256SUMS.txt`
+- `SupraProductivity_v1.3.1-test.1_windows_x64.zip`
 
 ## Immediate next action
 
-**Owner-test the GitHub-built artifact on the target company laptop.**
+**Owner tests `v1.3.1-test.1` on the target company laptop.**
 
-Test in this order:
+Test:
+1. standard Windows user, no Admin;
+2. import session with Copy-as-cURL bash;
+3. sync on PDA;
+4. sync on restricted Office network;
+5. verify PICK has no flicker/blank event loop;
+6. verify manual shift, double-click detail, typed sorting and screen-specific controls;
+7. leave app running long enough to inspect CPU/RAM/log stability.
 
-1. Start as standard Windows user.
-2. Import Dashboard session using Copy-as-cURL bash.
-3. Sync on PDA network.
-4. Sync on restricted Office network.
-5. Verify PICK no longer flickers/blanks.
-6. Verify manual shift, double-click detail, typed sorting and operational controls.
-7. Leave the app running long enough to review CPU/RAM/log stability.
+### If accepted
 
-If accepted:
-- create the next semantic version tag;
-- let `.github/workflows/release.yml` publish the Windows portable GitHub Release;
-- future accepted clients update through GitHub Release with SHA256 verification.
+Create/update:
 
-If not accepted:
-- export diagnostics privately;
-- commit only sanitized findings;
-- fix the verified regression and let GitHub Actions rebuild.
+`release/stable-version.txt`
 
-## Important
+with the approved semantic version, for example:
 
-A **stable release is intentionally not published yet**. Publishing a stable tag before the GitHub-built candidate is tested on the company laptop would incorrectly mark an unverified build as accepted.
+`v1.3.1`
+
+That single canonical change automatically runs `.github/workflows/publish-stable.yml`, rebuilds from source, validates security/tests, and publishes the stable GitHub Release. The in-app updater checks stable GitHub Releases and verifies SHA256 before replacement.
+
+### If not accepted
+
+Send the diagnostic privately. Record only sanitized findings in GitHub, fix the verified issue, increment `release/test-version.txt`, and GitHub automatically publishes the next prerelease candidate.
+
+## Security
+
+Never commit the runtime cURL/token/cookie/signature, raw company data, raw diagnostic ZIPs, or private endpoint bindings to this public repository.
