@@ -1039,6 +1039,95 @@ func loadCredentials() {
 	}
 	
 
+func runtimeProfilePath() string { return filepath.Join(secureDir(), "runtime-profile.dat") }
+func runtimeProfileProvisionPath() string {
+	exe, e := os.Executable()
+	if e != nil {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(exe), "SupraProductivity.profile.json")
+}
+func validateRuntimeProfile(p runtimeProfile) error {
+	if p.SchemaVersion != 1 {
+		return fmt.Errorf("schema_version phải = 1")
+	}
+	if len(p.Bindings) == 0 {
+		return fmt.Errorf("profile không có binding")
+	}
+	for name, b := range p.Bindings {
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("binding không có tên")
+		}
+		if _, e := url.ParseRequestURI(strings.TrimSpace(b.URL)); e != nil {
+			return fmt.Errorf("binding %s có URL không hợp lệ", name)
+		}
+		m := strings.ToUpper(strings.TrimSpace(b.Method))
+		if m == "" {
+			m = "GET"
+		}
+		switch m {
+		case "GET", "POST", "PUT", "PATCH", "DELETE":
+		default:
+			return fmt.Errorf("binding %s có method không hợp lệ", name)
+		}
+	}
+	return nil
+}
+func provisionRuntimeProfile() {
+	path := runtimeProfileProvisionPath()
+	if path == "" {
+		return
+	}
+	raw, e := os.ReadFile(path)
+	if e != nil {
+		return
+	}
+	var p runtimeProfile
+	if e = json.Unmarshal(raw, &p); e != nil || validateRuntimeProfile(p) != nil {
+		logEvent("WARN", "RUNTIME_PROFILE_IMPORT_FAILED", "file", filepath.Base(path))
+		return
+	}
+	plain, _ := json.Marshal(p)
+	enc, e := protect(plain)
+	if e != nil {
+		logEvent("ERROR", "RUNTIME_PROFILE_PROTECT_FAILED")
+		return
+	}
+	if e = os.WriteFile(runtimeProfilePath(), []byte(base64.StdEncoding.EncodeToString(enc)), 0600); e != nil {
+		logEvent("ERROR", "RUNTIME_PROFILE_SAVE_FAILED")
+		return
+	}
+	_ = os.Remove(path)
+	logEvent("INFO", "RUNTIME_PROFILE_IMPORTED", "profile_id", sanitizeProfileID(p.ProfileID), "binding_count", strconv.Itoa(len(p.Bindings)))
+}
+func loadRuntimeProfile() {
+	profile = runtimeProfile{}
+	raw, e := os.ReadFile(runtimeProfilePath())
+	if e != nil {
+		return
+	}
+	enc, e := base64.StdEncoding.DecodeString(strings.TrimSpace(string(raw)))
+	if e != nil {
+		return
+	}
+	plain, e := unprotect(enc)
+	if e != nil {
+		return
+	}
+	var p runtimeProfile
+	if json.Unmarshal(plain, &p) != nil || validateRuntimeProfile(p) != nil {
+		return
+	}
+	profile = p
+}
+func sanitizeProfileID(v string) string {
+	v = strings.TrimSpace(v)
+	if len(v) > 64 {
+		v = v[:64]
+	}
+	return regexp.MustCompile("[^A-Za-z0-9._-]+").ReplaceAllString(v, "_")
+}
+
 func sanitizeValue(k, v string) string {
 	if isSensitiveHeader(k) {
 		return "[REDACTED]"
