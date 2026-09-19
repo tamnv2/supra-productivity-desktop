@@ -71,3 +71,10 @@ Status: private test build; owner acceptance pending.
 - Kept private endpoint bindings outside the public repository through the local DPAPI runtime profile.
 - Extended the GitHub updater so test/prerelease builds can detect newer test releases; SHA256 verification, backup, staged replacement and restart remain mandatory.
 - Planned an actual updater verification pair: `v1.3.2-test.1` → `v1.3.2-test.2`.
+
+### V1.3 updater verification candidates published
+- `v1.3.2-test.1` published from the recovered V1.3 rebaseline.
+- `v1.3.2-test.2` published from identical source as the GitHub self-update target.
+- PR #3 validation passed State Guard `35419657684` and Windows Portable `35419657703`.
+- Owner runtime update verification remains required before stable promotion.
+
