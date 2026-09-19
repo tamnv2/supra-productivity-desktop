@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -25,6 +26,7 @@ import (
 	"unsafe"
 
 	"github.com/tamnv2/supra-productivity-desktop/internal/core"
+	liveio "github.com/tamnv2/supra-productivity-desktop/internal/live"
 )
 
 var appVersion = "dev"
@@ -196,23 +198,18 @@ type appSettings struct {
 	DataFolder string                `json:"data_folder"`
 	Business   core.BusinessSettings `json:"business"`
 }
-type runtimeBinding struct {
-	Method  string            `json:"method"`
-	URL     string            `json:"url"`
-	Body    string            `json:"body,omitempty"`
-	Headers map[string]string `json:"headers,omitempty"`
-}
+type runtimeBinding = liveio.Binding
 type runtimeProfile struct {
 	SchemaVersion int                       `json:"schema_version"`
 	ProfileID     string                    `json:"profile_id"`
 	Bindings      map[string]runtimeBinding `json:"bindings"`
 }
 type liveState struct {
-	Pick, Pack, Shift, Active core.Table
-	Payroll                   []core.PayrollRow
-	LastSync                  time.Time
-	LastError                 string
-	Route                     string
+	Pick, Pack, Shift, Active, UserPDA core.Table
+	Payroll                            []core.PayrollRow
+	LastSync                           time.Time
+	LastError                          string
+	Route                              string
 }
 
 type tableModel struct {
@@ -598,7 +595,11 @@ func renderShift() {
 }
 func renderUserPDA() {
 	pageTitle("USER / PDA", "Dữ liệu nhân sự live/local; không có dữ liệu cá nhân nào được đóng gói trong bản public.")
-	renderTable(core.Table{Headers: []string{"Họ và tên", "Mã nhân viên", "User", "Nhà cung cấp", "Site", "Vị trí công việc", "PDA", "Trạng thái"}}, 125)
+	liveMu.RLock(); t := live.UserPDA; liveMu.RUnlock()
+	if len(t.Headers) == 0 {
+		t = core.Table{Headers: []string{"Họ và tên", "Mã nhân viên", "User", "Nhà cung cấp", "Site", "Tuổi nghề"}}
+	}
+	renderTable(t, 125)
 }
 func renderLog() {
 	pageTitle("NHẬT KÝ", "Toàn bộ sự kiện kỹ thuật cần thiết, tự loại thông tin nhạy cảm.")
@@ -699,6 +700,7 @@ func recalculate() {
 	live.Pick = p
 	live.Pack = pa
 	live.Shift = sh
+	live.UserPDA = liveio.BuildPeopleTable(live.Payroll)
 }
 func applyManualShift() {
 	row, ok := selectedRow()
