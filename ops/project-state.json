@@ -5,9 +5,9 @@
   "repository": "tamnv2/supra-productivity-desktop",
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
-  "current_version": "v1.3.2-test.3",
-  "current_phase": "owner-runtime-verification",
-  "current_status": "test3_published_owner_runtime_verification_pending",
+  "current_version": "v1.3.2-test.4",
+  "current_phase": "win32-runtime-stability-fix",
+  "current_status": "test4_branch_ready_pr_ci_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -78,17 +78,17 @@
     "Merged Excel-like bottom navigation, unified Log and runtime stability candidate to main at e653ff0765124f4c009fded5be14c4ad0e1c7dcf.",
     "Published GitHub prerelease v1.3.2-test.3 for owner runtime verification."
   ],
-  "current_task": "Owner runtime verification of v1.3.2-test.3 bottom navigation, unified Log, anti-freeze behavior and always-maximized window.",
-  "next_action": "Owner downloads/runs v1.3.2-test.3, rapidly switches tabs and uses Pick/Pack/Phân ca controls, verifies minimize restores maximized and restore-down/resize is blocked, verifies XUẤT LOG Save As. If any hang remains, send the exported Log. Excel parity feature decisions remain pending Owner approval.",
+  "current_task": "Verify Win32 message-loop hang fix, taskbar-visible work-area sizing, corrected shell background and nonblocking Log export.",
+  "next_action": "Run PR CI for v1.3.2-test.4. Merge/publish only if guards, tests, vet, Windows cross-build and binary scan pass. Owner then verifies no Not Responding, taskbar visibility, minimize/restore, bottom UI and Log export.",
   "blockers": [
-    "GitHub PR CI/build must pass for v1.3.2-test.3.",
-    "Owner target-laptop verification is required for the reported hang.",
+    "GitHub PR CI/build must pass for v1.3.2-test.4.",
+    "Owner target-laptop verification is required because the hang reproduces only in real Windows GUI runtime.",
     "Excel parity feature keep/remove decisions remain pending Owner confirmation."
   ],
   "known_issues": [
-    "Owner reported v1.3.2 becoming unresponsive after brief UI interaction; previous logs lacked timing/exception detail.",
-    "Target-laptop PDA/Office runtime behavior still requires verification.",
-    "Detailed Excel parity beyond bottom navigation is pending Owner approval."
+    "v1.3.2-test.3 reproduced Not Responding on owner laptop despite low app memory and no business rows.",
+    "v1.3.2-test.3 forced-maximize/system-command behavior and synchronous Save As were unsafe and are replaced in test.4.",
+    "Target-laptop PDA/Office runtime behavior still requires verification."
   ],
   "test_status": {
     "v1.1": "superseded",
@@ -108,7 +108,8 @@
     "v1.3.2-test.1": "published_ci_pass_updater_source",
     "v1.3.2-test.2": "published_ci_pass_updater_target",
     "updater_test1_to_test2": "owner_runtime_pending",
-    "v1.3.2-test.3": "published_owner_runtime_pending"
+    "v1.3.2-test.3": "owner_rejected_not_responding_ui_broken",
+    "v1.3.2-test.4": "pr_ci_pending"
   },
   "security": {
     "public_repo": true,
@@ -149,8 +150,8 @@
     "stable_release": "pending_owner_acceptance",
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
-    "candidate_release": "v1.3.2-test.3",
-    "candidate_release_status": "published_prerelease",
+    "candidate_release": "v1.3.2-test.4",
+    "candidate_release_status": "requested_pr_ci_pending",
     "candidate_publish_run_id": null,
     "main_build_run_id": null,
     "pr_ci_state_guard_run_id": 35420791580,
