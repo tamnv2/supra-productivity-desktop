@@ -81,3 +81,11 @@ Canonical record of explicit owner decisions. Newest explicit owner instruction 
 - Restore-down/manual resize/manual move must not produce a smaller app window.
 - The implementation must not force maximize recursively from the Win32 system-command handler.
 
+## 2026-09-19 — professional native shell
+
+- The Excel workbook remains the information-architecture reference, but the desktop application should not look like a raw Win32 prototype.
+- Use a consistent native Windows shell: fixed header, clear page title/subtitle, grouped controls, main table/content area, and bottom business navigation.
+- Remove internal engineering/repository text from normal operator screens.
+- Prioritize dense operational information and clear grouping over decorative colors.
+- Runtime stability has priority over further business-feature expansion.
+
