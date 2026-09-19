@@ -1,0 +1,85 @@
+name: Publish Owner Test Candidate
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "release/test-version.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve candidate version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '\r\n ' < release/test-version.txt)"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-test\.[0-9]+$ ]]; then
+            echo "Invalid candidate version: $VERSION" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate public repository and source
+        run: |
+          python scripts/validate_project_state.py
+          python scripts/validate_public_repo.py
+          go test ./...
+          go vet ./...
+
+      - name: Build Windows x64
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+            go build -trimpath \
+            -ldflags="-s -w -H=windowsgui -X main.appVersion=${VERSION}" \
+            -o dist/SupraProductivity.exe ./cmd/supra-productivity
+          python scripts/scan_binary.py dist/SupraProductivity.exe
+          cd dist
+          sha256sum SupraProductivity.exe > SHA256SUMS.txt
+          zip -9 "SupraProductivity_${VERSION}_windows_x64.zip" SupraProductivity.exe SHA256SUMS.txt
+
+      - name: Publish or refresh prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ZIP="dist/SupraProductivity_${VERSION}_windows_x64.zip"
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release upload "$VERSION" dist/SupraProductivity.exe dist/SHA256SUMS.txt "$ZIP" --clobber
+          else
+            gh release create "$VERSION" \
+              dist/SupraProductivity.exe \
+              dist/SHA256SUMS.txt \
+              "$ZIP" \
+              --target "$GITHUB_SHA" \
+              --title "SUPRA PRODUCTIVITY $VERSION" \
+              --notes "Automated owner-test candidate. Not stable/accepted until the owner validates it on the target company laptop and networks." \
+              --prerelease
+          fi
