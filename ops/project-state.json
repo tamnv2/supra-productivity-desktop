@@ -45,14 +45,15 @@
     "Added Windows x64 GitHub Actions build and versioned Release workflows",
     "Added local DPAPI runtime-profile provisioning from SupraProductivity.profile.json",
     "Added staged GitHub update flow: download release EXE/checksum, SHA256 verify, local backup, replace after exit, restart; replacement failure restores backup",
-    "Local go test ./..., go vet ./..., Windows x64 cross-build, and public binary scan passed"
+    "Local go test ./..., go vet ./..., Windows x64 cross-build, and public binary scan passed",
+    "Verified repository continuity/security bootstrap is present on main",
+    "Verified V1.3 package available for testing contains binary artifacts only; no canonical source tree was preserved in the active handoff artifacts"
   ],
-  "current_task": "Bind locally provisioned private operational requests to full live Active-Picking and Payroll/Productivity synchronization, then validate the GitHub-built artifact on target networks.",
-  "next_action": "Implement live request/response binding through the encrypted runtime profile, then trigger and verify the GitHub Actions artifact and owner-test it on PDA and Office.",
+  "current_task": "Recover or recreate the canonical V1.3 source tree, sanitize it for the public repository, then add reproducible GitHub Actions build/release.",
+  "next_action": "Create a canonical source tree that reproduces the current V1.3 behavior. The active handoff artifacts contain the V1.3 EXE/package but not its source, so reproducible GitHub build/release is blocked until source is restored. After source restoration: security scrub -> commit -> Windows x64 CI -> tagged Release -> updater.",
   "blockers": [
-    "Production live-data request bindings/response mapping remain private and must be provisioned locally; the public source must not embed them.",
-    "Remote GitHub Actions run is not yet verified because connector-created events did not expose a workflow run; a normal external push/manual dispatch is still needed.",
-    "Sanitized public source is not owner-accepted until the GitHub-built executable is tested on the company laptop."
+    "The active V1.3 test package contains the executable, guide, changelog and checksum, but no source tree.",
+    "A reproducible GitHub Actions build cannot be claimed until canonical source that builds V1.3-equivalent behavior is present in the repository."
   ],
   "known_issues": [
     "Runtime profile import/encryption exists, but full live Active-Picking and Payroll/Productivity parsers are not yet wired to those bindings.",
