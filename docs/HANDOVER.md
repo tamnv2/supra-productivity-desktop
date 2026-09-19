@@ -47,4 +47,14 @@ Current owner verification is still required.
 
 ## Current repository direction
 
-GitHub public repository is now the canonical persistence layer. Raw secrets and operational data are forbidden. Source import and GitHub Actions build/release are the next engineering steps.
+GitHub is the canonical persistence layer for source, project state, decisions, sanitized debugging findings and next action.
+
+As of 2026-09-19:
+- canonical sanitized Go/Win32 source is committed;
+- live requests are executed through a locally provisioned DPAPI-protected runtime profile, so private endpoint bindings are not published;
+- GitHub pull-request CI successfully passed tests, vet, Windows x64 cross-build, public source/binary guards and artifact packaging;
+- verified test artifact: Actions run `35412096189`, artifact `10574174267`;
+- GitHub Release workflow and in-app stable-release updater foundation are implemented;
+- stable release is intentionally waiting for owner runtime acceptance on PDA and Office.
+
+New sessions should start from `ops/project-state.json` then `NEXT_ACTION.md`; do not reconstruct status from old chat memory.
