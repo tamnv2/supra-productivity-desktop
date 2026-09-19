@@ -12,11 +12,13 @@ Production credentials, private endpoint bindings, raw operational data and raw 
 
 On main/PR it validates project state and public-repo safety, runs tests/vet, cross-builds Windows x64, scans the produced binary, creates SHA256 and uploads the portable artifact.
 
-Verified PR build:
-- run `35412096189` — PASS.
+Verified PR build for current candidate:
+- run `35440770194` — PASS.
+- matching PR Project State Guard `35440770198` — PASS.
 
 Verified main build for current candidate request:
-- run `35416300869` — PASS.
+- run `35442973548` — PASS.
+- matching main Project State Guard `35442973560` — PASS.
 
 ## Owner-test prerelease
 
@@ -28,10 +30,11 @@ Canonical trigger:
 The workflow rebuilds from canonical source, reruns guards/tests/vet/binary scan and publishes a GitHub **prerelease**.
 
 Current candidate:
-- `v1.3.2-test.1` — published recovered V1.3 updater-source candidate.
-- `v1.3.2-test.2` — published identical-source in-app updater target.
+- `v1.3.2-test.8` — published owner-test prerelease.
+- publish run `35442973570` — PASS.
+- release assets: EXE, SHA256SUMS and Windows x64 ZIP.
 
-Previous `v1.3.1-test.1` and `v1.3.1-test.2` are superseded for business-behavior baseline purposes by the owner-provided recovered V1.3 source.
+Previous `v1.3.2-test.1` through `v1.3.2-test.7` are superseded as active candidates. Previous `v1.3.1-test.1` and `v1.3.1-test.2` remain superseded for business-behavior baseline purposes by the owner-provided recovered V1.3 source.
 
 Prereleases are for owner testing and are not treated as accepted stable builds.
 

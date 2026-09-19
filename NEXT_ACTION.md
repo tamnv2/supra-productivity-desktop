@@ -2,42 +2,34 @@
 
 Updated: 2026-09-19
 
-## Candidate being validated
+## Published candidate
 
-**v1.3.2-test.8** — native Recap + smart date cache.
+**v1.3.2-test.8** is published and all automated gates passed.
 
-Implementation on `feat/native-recap-smart-date-cache`:
-- report range defaults to today and accepts Từ ngày / Đến ngày;
-- no production auto-sync interval; business refresh is manual through **ĐỒNG BỘ**;
-- native **BÁO CÁO** tab: Recap, % chẵn lẻ, NSLD Pick, NSLD Pack;
-- per-day local payroll cache;
-- historical sync downloads only missing contiguous ranges;
-- today always refreshes on manual sync;
-- reports use full selected range; Pick/Pack/Phân ca use selected end date;
-- Excel first-match Mã Tham chiếu → Pack user rule retained for Pick Auto PP.
+Automated verification:
+- PR Project State Guard `35440770198` — PASS
+- PR Windows Portable `35440770194` — PASS
+- Main Project State Guard `35442973560` — PASS
+- Main Windows Portable `35442973548` — PASS
+- Publish Owner Test Candidate `35442973570` — PASS
+- unit tests / vet / Windows x64 cross-build / public binary scan / packaging — PASS
+- release assets present: `SupraProductivity.exe`, `SHA256SUMS.txt`, `SupraProductivity_v1.3.2-test.8_windows_x64.zip`
 
-## Next automated gate
+## test.8 behavior to verify on target laptop
 
-1. Open PR to `main`.
-2. Require PR State Guard and Windows Portable workflow to PASS:
-   - project/public-repo guards;
-   - `go test ./...`;
-   - `go vet ./...`;
-   - Windows x64 build and binary public scan.
-3. Merge only after CI passes.
-4. Merge changes `release/test-version.txt` to `v1.3.2-test.8`, which triggers owner-test prerelease publication.
-5. Verify main build + publish run before handing the EXE to Owner.
-
-## Owner runtime test after publication
-
-1. Launch test.8: date range must default to today's date.
-2. In **BÁO CÁO**, select a historical range with partial local cache and press **ĐỒNG BỘ**.
-3. Log/status must show only missing days downloaded; already-cached historical days are not requested again.
-4. Verify four report views against the reference workbook:
+1. Launch test.8: **Từ ngày / Đến ngày default to today**.
+2. Business data is refreshed only by **ĐỒNG BỘ**; no production minute-based auto-sync runs.
+3. In **BÁO CÁO**, verify four native views:
    - Recap
    - % chẵn lẻ
    - NSLD Pick
    - NSLD Pack
-5. Verify Pick/Pack/Phân ca show only the selected **Đến ngày**, not a multi-day aggregation.
-6. Repeat manual sync on today: today's cache must refresh while prior historical days remain reused.
-7. Export Log if any value differs; credentials/raw company data must remain absent from GitHub.
+4. Select a historical range with partial cache, e.g. 01/09→19/09 where 01/09→15/09 already exists:
+   - historical cached days must not be re-downloaded blindly;
+   - only missing contiguous ranges are requested;
+   - today is refreshed whenever manual sync is pressed.
+5. Compare report totals/rates with the reference workbook/Google Sheet logic.
+6. Verify **Pick / Pack / Phân ca use only the selected Đến ngày**, while Báo cáo uses the full selected range.
+7. Verify Pick Auto PP matches the workbook first-match `Mã Tham chiếu → Pack user` behavior.
+
+If any live value differs, export the test.8 Log for targeted correction. Do not re-enter the Dashboard cURL unless the saved session itself is invalid.
