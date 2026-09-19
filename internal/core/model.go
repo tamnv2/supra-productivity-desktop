@@ -125,7 +125,7 @@ func NormalizeBusinessSettings(b *BusinessSettings) {
 }
 
 type PayrollRow struct {
-	Job, EvenOdd, DO, User, Name, Provider, MNV, Site, Tenure string
+	Job, EvenOdd, DO, Reference, User, Name, Provider, MNV, Site, Tenure string
 	Shift, ManualShift                                       string
 	Start, End                                               time.Time
 	Duration                                                 float64 // minutes, matching V1.3 payroll export
