@@ -2,43 +2,38 @@
 
 Updated: 2026-09-19
 
-## Owner finding on test.3
+## Published candidate
 
-`v1.3.2-test.3` is rejected:
-- UI rendered incorrectly with grey/white bands.
-- App entered Windows **Not Responding**.
-- Owner requires “full” to mean full **work area with taskbar visible**, not fullscreen/taskbar coverage.
+**v1.3.2-test.4** is published.
 
-The exported log shows the failure was not caused by heavy data:
-- payroll/pick/pack/active rows were all zero;
-- heap remained very small;
-- only a few goroutines were active;
-- Save As command 401 held the main UI command for 2531 ms.
+Automated verification:
+- PR State Guard `35422413386` — PASS
+- PR Windows Portable `35422413376` — PASS
+- Publish Owner Test Candidate `35422493978` — PASS
+- unit tests / vet / Windows x64 cross-build / public binary scan / packaging — PASS
 
-## test.4 corrective candidate
+## What test.4 changes
 
-1. Remove forced `SW_MAXIMIZE` from `WM_SYSCOMMAND`.
-2. Pin outer window to monitor `rcWork`; Windows taskbar remains visible.
-3. Block resize/move/explicit maximize without recursively changing window state.
-4. Keep minimize-to-taskbar.
-5. Move the native Log Save As dialog to its own locked OS thread.
-6. Keep Log aggregation/background I/O off the UI thread.
-7. Remove synchronous Log flush from Log-page rendering.
-8. Limit on-screen Log tail while exported Log remains comprehensive.
-9. Give the parent Win32 window a standard background brush so static controls no longer appear as broken strips.
-10. Keep bottom Excel-like tabs with a visible selected state.
-11. Add `UI_WATCHDOG_STALL` stack capture for any main-thread stall >=6 seconds.
+1. Removes the forced `SW_MAXIMIZE` call from `WM_SYSCOMMAND`.
+2. Pins the application to monitor `rcWork`: full working area **with Windows taskbar visible**.
+3. Blocks smaller resize/move/explicit maximize without recursive window-state changes.
+4. Keeps minimize-to-taskbar and restores to full work-area size.
+5. Moves native **XUẤT LOG...** Save As onto its own OS thread.
+6. Keeps Log aggregation/file I/O off the main UI thread.
+7. Removes synchronous Log flush from Log-page rendering.
+8. Limits on-screen Log tail while exported Log remains comprehensive.
+9. Adds a proper Windows background brush to remove grey/white broken-strip rendering.
+10. Keeps bottom Excel-like tabs and shows the selected tab state.
+11. Adds `UI_WATCHDOG_STALL` with goroutine stack capture if the main UI stops processing messages for >=6 seconds.
 
-## Immediate next action
+## Owner test now
 
-Run PR CI for **v1.3.2-test.4**. Publish only after full CI passes.
+- update from test.3 to test.4 or download test.4;
+- verify taskbar remains visible at all times;
+- minimize and restore;
+- try resize/move/restore-down;
+- rapidly switch all bottom tabs for 1–2 minutes;
+- open LOG and use **XUẤT LOG...**;
+- leave app idle for at least one minute.
 
-Owner runtime verification after publication:
-- taskbar always visible;
-- app fills remaining monitor work area;
-- minimize/restore works and restores full work-area size;
-- no restore-down/resize smaller;
-- rapidly switch all bottom tabs;
-- open/export Log;
-- leave app idle for at least one minute;
-- if Windows still shows Not Responding, export/send the new Log; watchdog stack should identify the exact blocking call.
+If Windows still shows **Not Responding**, export/send the new Log. The watchdog stack should identify the exact blocked call rather than only showing the last page event.
