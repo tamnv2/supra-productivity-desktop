@@ -1854,6 +1854,24 @@ func localHeaderSensitive(k string) bool {
 		strings.Contains(n, "password")
 }
 
+func templatizeRequestDates(raw string, now time.Time) string {
+	if raw == "" { return raw }
+	today := now
+	tomorrow := now.AddDate(0, 0, 1)
+	yesterday := now.AddDate(0, 0, -1)
+	repl := []struct{ old, next string }{
+		{today.Format("2006-01-02"), "{{TODAY_ISO}}"},
+		{tomorrow.Format("2006-01-02"), "{{TOMORROW_ISO}}"},
+		{yesterday.Format("2006-01-02"), "{{YESTERDAY_ISO}}"},
+		{today.Format("02/01/2006"), "{{TODAY_DMY}}"},
+		{tomorrow.Format("02/01/2006"), "{{TOMORROW_DMY}}"},
+		{yesterday.Format("02/01/2006"), "{{YESTERDAY_DMY}}"},
+	}
+	out := raw
+	for _, r := range repl { out = strings.ReplaceAll(out, r.old, r.next) }
+	return out
+}
+
 func bindingFromCurl(c credentials, source string) (runtimeBinding, error) {
 	name := sourceBindingName(source)
 	if name == "" { return runtimeBinding{}, fmt.Errorf("chưa chọn nguồn dữ liệu") }
@@ -1862,7 +1880,14 @@ func bindingFromCurl(c credentials, source string) (runtimeBinding, error) {
 		if strings.TrimSpace(k) == "" || localHeaderSensitive(k) { continue }
 		headers[k] = v
 	}
-	b := runtimeBinding{Method: c.Method, URL: c.URL, Body: c.Body, Headers: headers}
+	now := time.Now()
+	for k, v := range headers { headers[k] = templatizeRequestDates(v, now) }
+	b := runtimeBinding{
+		Method: c.Method,
+		URL: templatizeRequestDates(c.URL, now),
+		Body: templatizeRequestDates(c.Body, now),
+		Headers: headers,
+	}
 	if b.Method == "" { b.Method = "GET" }
 	if name == "payroll-productivity" { b.ResponseKind = "xlsx" } else { b.ResponseKind = "json" }
 	if _, err := url.ParseRequestURI(strings.TrimSpace(b.URL)); err != nil {
