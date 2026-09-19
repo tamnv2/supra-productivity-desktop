@@ -5,9 +5,9 @@
   "repository": "tamnv2/supra-productivity-desktop",
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
-  "current_version": "v1.3.2-test.4",
-  "current_phase": "owner-runtime-verification",
-  "current_status": "test4_published_owner_runtime_verification_pending",
+  "current_version": "v1.3.2-test.5",
+  "current_phase": "ui-thread-root-fix-and-shell-rebuild",
+  "current_status": "test5_branch_ready_pr_ci_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -82,16 +82,17 @@
     "Merged Win32 hang/taskbar-visible work-area fix to main at 8a8ddc00e675eb35486411a7f3c79cc036e6d950.",
     "Published v1.3.2-test.4 successfully via Publish Owner Test Candidate run 35422493978."
   ],
-  "current_task": "Owner runtime verification of Win32 hang fix, taskbar-visible work-area sizing, corrected UI painting and nonblocking Log export.",
-  "next_action": "Owner updates/runs v1.3.2-test.4 and verifies taskbar remains visible, no restore-down/resize smaller, minimize/restore works, rapid bottom-tab switching remains responsive, and Log export no longer stalls UI. If Not Responding remains, send the new exported Log containing UI_WATCHDOG_STALL stack data.",
+  "current_task": "Verify Win32 OS-thread affinity fix and rebuilt professional native UI shell.",
+  "next_action": "Run PR CI for v1.3.2-test.5. Merge/publish only after state/public guards, tests, vet, Windows cross-build and binary scan pass. Owner then verifies 2+ minutes responsive runtime and reviews the rebuilt layout.",
   "blockers": [
-    "Owner target-laptop verification is required because the previous Not Responding issue was runtime-specific.",
-    "Excel parity feature keep/remove decisions remain pending Owner confirmation."
+    "GitHub PR CI/build must pass for v1.3.2-test.5.",
+    "Owner target-laptop verification is required because Not Responding is a Windows GUI runtime issue.",
+    "Further Excel-parity business features remain deferred until runtime/UI baseline is accepted."
   ],
   "known_issues": [
-    "v1.3.2-test.3 was rejected for broken UI painting and Not Responding.",
-    "v1.3.2-test.4 replaces the unsafe maximize/system-command behavior and synchronous Save As; owner runtime acceptance is pending.",
-    "Target-laptop PDA/Office runtime behavior still requires verification."
+    "v1.3.2-test.4 still reproduced Windows Not Responding on owner laptop.",
+    "test.4 watchdog used an idle-time heuristic and generated false stall logs; test.5 uses message PING/PONG.",
+    "test.5 introduces runtime.LockOSThread for Win32 thread affinity and requires owner runtime verification."
   ],
   "test_status": {
     "v1.1": "superseded",
@@ -112,7 +113,8 @@
     "v1.3.2-test.2": "published_ci_pass_updater_target",
     "updater_test1_to_test2": "owner_runtime_pending",
     "v1.3.2-test.3": "owner_rejected_not_responding_ui_broken",
-    "v1.3.2-test.4": "published_owner_runtime_pending"
+    "v1.3.2-test.4": "owner_rejected_not_responding_and_ui_unacceptable",
+    "v1.3.2-test.5": "pr_ci_pending"
   },
   "security": {
     "public_repo": true,
@@ -153,8 +155,8 @@
     "stable_release": "pending_owner_acceptance",
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
-    "candidate_release": "v1.3.2-test.4",
-    "candidate_release_status": "published_prerelease",
+    "candidate_release": "v1.3.2-test.5",
+    "candidate_release_status": "requested_pr_ci_pending",
     "candidate_publish_run_id": 35422493978,
     "main_build_run_id": null,
     "pr_ci_state_guard_run_id": 35422413386,

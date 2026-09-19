@@ -72,3 +72,11 @@ Updated: 2026-09-19
 - Added UI watchdog logging: a main-thread stall >=6 seconds records all Go goroutine stacks as `UI_WATCHDOG_STALL`.
 - **Status:** fixed in test.4 candidate; target-laptop verification required.
 
+### Win32 UI thread affinity
+- test.4 watchdog stack showed goroutine 1 blocked inside the Win32 message-pump syscall while the owner observed real Windows `Not Responding`.
+- The previous implementation created the Win32 window and message loop from an unlocked Go goroutine. Go may migrate an unlocked goroutine between OS threads, but Win32 window/control/message-loop operations are thread-affine.
+- test.5 locks the full GUI lifetime to one OS thread with `runtime.LockOSThread()`.
+- The previous watchdog also produced false idle-stall reports because it measured time since the last window-procedure call. test.5 replaces that with explicit `WM_APP_PING` / pong acknowledgement.
+- Periodic memory/runtime collection and Log-tail loading are moved off the UI thread.
+- **Status:** fixed in test.5 candidate; owner runtime verification required.
+

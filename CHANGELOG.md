@@ -103,3 +103,22 @@ Status: private test build; owner acceptance pending.
 - Bottom navigation uses persistent checked/push-like tab state.
 - Added UI watchdog stack capture for stalls of six seconds or longer.
 
+## 2026-09-19 — test.5 UI-thread and professional-shell rebuild
+
+### Runtime stability
+- Lock the full Win32 GUI lifetime/message loop to one OS thread using `runtime.LockOSThread()`.
+- Replace idle-time watchdog with explicit message-loop PING/PONG checks.
+- Move periodic runtime/RAM snapshots off the UI thread.
+- Move Log-tail file reading off the UI thread.
+- Ignore anonymous edit-control `WM_COMMAND id=0` notifications to avoid unnecessary logging/event work.
+- Keep Log Save As and export work outside the main UI thread.
+
+### UI/layout rebuild
+- Rebuilt the application shell around a consistent header, page-title area, content groups and Excel-like bottom navigation.
+- Added structured summary/status cards on Tổng quan.
+- Added consistent filter/rule toolbars for Đang lấy hàng, Pick, Pack and Phân ca.
+- Reworked User/PDA and Log spacing.
+- Rebuilt Thiết lập into separate Dashboard-session and session-status panels.
+- Removed internal/repository wording from the operator-facing settings screen.
+- Standardized spacing, typography and button sizing.
+
