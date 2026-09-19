@@ -8,7 +8,7 @@ TEXT_EXTS = {".md", ".json", ".jsonl", ".py", ".go", ".mod", ".sum", ".yml", ".y
 
 patterns = [
     ("authorization/token value", re.compile(r"(?i)(authorization|access[_ -]?token|bearer)[ 	]*[:=][ 	]*['\"]?(?:bearer[ 	]+)?[A-Za-z0-9._~+\-/=]{24,}")),
-    ("APISID/USID value", re.compile(r"(?i)\b(APISID|USID)[ 	]*[:=][ 	]*['\"]?[A-Za-z0-9%._~+\-/=]{12,}")),
+    ("APISID/USID quoted literal", re.compile(r"(?i)\b(APISID|USID)[ 	]*[:=][ 	]*['\"][A-Za-z0-9%._~+\-/=]{12,}['\"]")),
     ("signature value", re.compile(r"(?i)\bx-signature(?:-nonce)?[ 	]*[:=][ 	]*['\"]?[A-Za-z0-9._~+\-/:=]{12,}")),
     ("cookie value", re.compile(r"(?i)\bcookie[ 	]*[:=][ 	]*['\"][^'\"\n]{30,}")),
     ("private key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
