@@ -6,8 +6,8 @@
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
   "current_version": "v1.3.2-test.5",
-  "current_phase": "ui-thread-root-fix-and-shell-rebuild",
-  "current_status": "test5_branch_ready_pr_ci_pending",
+  "current_phase": "owner-runtime-verification",
+  "current_status": "test5_published_owner_runtime_and_ui_review_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -80,19 +80,21 @@
     "PR #5 passed Project State Guard run 35422413386.",
     "PR #5 passed Windows Portable build run 35422413376 including tests, vet, Windows x64 cross-build, binary scan and packaging.",
     "Merged Win32 hang/taskbar-visible work-area fix to main at 8a8ddc00e675eb35486411a7f3c79cc036e6d950.",
-    "Published v1.3.2-test.4 successfully via Publish Owner Test Candidate run 35422493978."
+    "Published v1.3.2-test.4 successfully via Publish Owner Test Candidate run 35422493978.",
+    "PR #6 passed Project State Guard run 35422949366.",
+    "PR #6 passed Windows Portable build run 35422949403 including unit tests, vet, Windows x64 cross-build, binary scan and packaging.",
+    "Merged Win32 OS-thread affinity and professional-shell rebuild to main at f47249643873e602b028ca9d360c5735392c96c7.",
+    "Published v1.3.2-test.5 successfully via run 35422993953."
   ],
-  "current_task": "Verify Win32 OS-thread affinity fix and rebuilt professional native UI shell.",
-  "next_action": "Run PR CI for v1.3.2-test.5. Merge/publish only after state/public guards, tests, vet, Windows cross-build and binary scan pass. Owner then verifies 2+ minutes responsive runtime and reviews the rebuilt layout.",
+  "current_task": "Owner verifies Win32 OS-thread affinity fix and rebuilt professional shell/layout.",
+  "next_action": "Owner updates/runs v1.3.2-test.5, leaves it idle 2+ minutes, switches tabs, uses Settings input and Log, then reports whether Windows Not Responding still occurs and reviews the rebuilt layout. If hang remains, export the new Log; PING/PONG watchdog results can now be trusted.",
   "blockers": [
-    "GitHub PR CI/build must pass for v1.3.2-test.5.",
-    "Owner target-laptop verification is required because Not Responding is a Windows GUI runtime issue.",
-    "Further Excel-parity business features remain deferred until runtime/UI baseline is accepted."
+    "Owner target-laptop runtime verification is required for the Windows GUI hang.",
+    "Owner UI acceptance is required before further Excel-parity business expansion."
   ],
   "known_issues": [
-    "v1.3.2-test.4 still reproduced Windows Not Responding on owner laptop.",
-    "test.4 watchdog used an idle-time heuristic and generated false stall logs; test.5 uses message PING/PONG.",
-    "test.5 introduces runtime.LockOSThread for Win32 thread affinity and requires owner runtime verification."
+    "v1.3.2-test.4 was rejected for repeated Not Responding and poor UI.",
+    "v1.3.2-test.5 locks the Win32 UI to one OS thread and rebuilds the shell; owner verification pending."
   ],
   "test_status": {
     "v1.1": "superseded",
@@ -114,7 +116,7 @@
     "updater_test1_to_test2": "owner_runtime_pending",
     "v1.3.2-test.3": "owner_rejected_not_responding_ui_broken",
     "v1.3.2-test.4": "owner_rejected_not_responding_and_ui_unacceptable",
-    "v1.3.2-test.5": "pr_ci_pending"
+    "v1.3.2-test.5": "published_owner_runtime_and_ui_review_pending"
   },
   "security": {
     "public_repo": true,
@@ -156,11 +158,11 @@
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
     "candidate_release": "v1.3.2-test.5",
-    "candidate_release_status": "requested_pr_ci_pending",
-    "candidate_publish_run_id": 35422493978,
+    "candidate_release_status": "published_prerelease",
+    "candidate_publish_run_id": 35422993953,
     "main_build_run_id": null,
-    "pr_ci_state_guard_run_id": 35422413386,
-    "pr_ci_windows_build_run_id": 35422413376
+    "pr_ci_state_guard_run_id": 35422949366,
+    "pr_ci_windows_build_run_id": 35422949403
   },
   "update_pipeline": {
     "latest_stable_release_check": "implemented",
