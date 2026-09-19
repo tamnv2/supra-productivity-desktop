@@ -57,3 +57,9 @@ Updated: 2026-09-19
 - Both updater verification releases `v1.3.2-test.1` and `v1.3.2-test.2` are published.
 - **Status:** owner target-laptop runtime/updater verification pending.
 
+### Runtime hang after short interaction
+- Owner reported that the V1.3.2 test build can become unresponsive after brief UI interaction.
+- Available log shows successful startup/page changes and successful GitHub update, but no exception or timing detail identifying the stall.
+- Corrective candidate adds page/command/table timing, panic capture, periodic runtime telemetry, non-reentrant page rendering, deferred control refresh and batched ListView redraw suppression.
+- **Status:** code changed; target-laptop verification required.
+
