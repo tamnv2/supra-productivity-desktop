@@ -1948,11 +1948,17 @@ func dashboardBindingsFromCurl(c credentials) (map[string]runtimeBinding, error)
 	activeHeaders["Content-Type"] = "application/json"
 	activeHeaders["Origin"] = origin
 	activeHeaders["Referer"] = origin + "/app/dashboard/picking"
+	activeHeaders["withcredentials"] = "true"
+	activeHeaders["Cache-Control"] = "no-cache"
+	activeHeaders["Pragma"] = "no-cache"
 
 	payHeaders := cloneHeaders(base)
 	payHeaders["Accept"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*"
 	payHeaders["Origin"] = origin
 	payHeaders["Referer"] = origin + "/app/payroll/list"
+	payHeaders["withcredentials"] = "true"
+	payHeaders["Cache-Control"] = "no-cache"
+	payHeaders["Pragma"] = "no-cache"
 
 	// Stable V1.3 uses one Dashboard session and two internal requests:
 	// current picking JSON plus previous-day..today payroll export XLSX.
