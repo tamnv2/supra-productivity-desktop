@@ -43,3 +43,9 @@ Updated: 2026-09-19
 - V1.2 PICK recursive checkbox/render mechanism → superseded by the V1.3 interaction change, pending verification.
 - GitHub continuity/source-state bootstrap → complete.
 - Public source import blocker → resolved; source is now in the repository.
+
+
+### Canonical V1.3 source unavailable
+- The active V1.3 package contains the executable and supporting release/test files, but no source tree.
+- This blocks reproducible GitHub Actions build/release.
+- **Status:** open; source must be restored/recreated and validated before CI/release can be completed.
