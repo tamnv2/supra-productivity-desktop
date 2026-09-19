@@ -4,6 +4,15 @@ All entries must be sanitized for a public repository.
 
 ## Unreleased
 
+### GitHub build verification
+- Repaired two source-reconstruction defects found by real PR CI: DPAPI credential load closure/unmarshal and latest-release URL construction.
+- Refined public-source guard to avoid false positives on credential variable references while still rejecting quoted credential literals.
+- Allowed only standard XML namespace hosts required by XLSX parsing in the binary URL allowlist.
+- GitHub-built candidate verified by PR CI run 35412096189: guards, tests, vet, Windows x64 cross-build, binary scan, packaging and artifact upload all passed.
+- Live payroll/productivity and active-picking synchronization is wired through the locally encrypted runtime profile with proxy/direct fallback.
+- Stable release remains pending owner runtime acceptance.
+
+
 ### Source / build
 - Imported a sanitized public Go/Win32 source reconstruction for the Windows portable application.
 - Added Excel-derived core business model and regression tests.
