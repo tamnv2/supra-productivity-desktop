@@ -49,6 +49,31 @@ type HTTPMeta struct {
 	Elapsed    time.Duration
 }
 
+func ExpandBinding(b Binding, now time.Time) Binding {
+	repl := map[string]string{
+		"{{TODAY_ISO}}": now.Format("2006-01-02"),
+		"{{TOMORROW_ISO}}": now.AddDate(0, 0, 1).Format("2006-01-02"),
+		"{{TODAY_DMY}}": now.Format("02/01/2006"),
+		"{{TOMORROW_DMY}}": now.AddDate(0, 0, 1).Format("02/01/2006"),
+		"{{NOW_ISO}}": now.Format(time.RFC3339),
+		"{{BUSINESS_DATE}}": now.Format("2006-01-02"),
+	}
+	expand := func(s string) string {
+		for k, v := range repl {
+			s = strings.ReplaceAll(s, k, v)
+		}
+		return s
+	}
+	b.URL = expand(b.URL)
+	b.Body = expand(b.Body)
+	if len(b.Headers) > 0 {
+		h := make(map[string]string, len(b.Headers))
+		for k, v := range b.Headers { h[k] = expand(v) }
+		b.Headers = h
+	}
+	return b
+}
+
 func Execute(ctx context.Context, client *http.Client, b Binding, s Session) ([]byte, HTTPMeta, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 45 * time.Second}
