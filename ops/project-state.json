@@ -5,9 +5,9 @@
   "repository": "tamnv2/supra-productivity-desktop",
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
-  "current_version": "v1.3.2-test.5",
-  "current_phase": "owner-runtime-verification",
-  "current_status": "test5_published_owner_runtime_and_ui_review_pending",
+  "current_version": "v1.3.2-test.6",
+  "current_phase": "live-source-integration",
+  "current_status": "test6_branch_ready_pr_ci_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -86,15 +86,15 @@
     "Merged Win32 OS-thread affinity and professional-shell rebuild to main at f47249643873e602b028ca9d360c5735392c96c7.",
     "Published v1.3.2-test.5 successfully via run 35422993953."
   ],
-  "current_task": "Owner verifies Win32 OS-thread affinity fix and rebuilt professional shell/layout.",
-  "next_action": "Owner updates/runs v1.3.2-test.5, leaves it idle 2+ minutes, switches tabs, uses Settings input and Log, then reports whether Windows Not Responding still occurs and reviews the rebuilt layout. If hang remains, export the new Log; PING/PONG watchdog results can now be trusted.",
+  "current_task": "Verify in-app live source configuration and end-to-end sync pipeline without manual runtime-profile provisioning.",
+  "next_action": "Run PR CI for v1.3.2-test.6. If PASS, merge/publish. Owner then configures Sản lượng and Đang lấy hàng once using matching Dashboard cURLs, tests each source, and runs Đồng bộ to verify User/PDA → Phân ca → Pick/Pack plus Active Picking.",
   "blockers": [
-    "Owner target-laptop runtime verification is required for the Windows GUI hang.",
-    "Owner UI acceptance is required before further Excel-parity business expansion."
+    "GitHub PR CI/build must pass for v1.3.2-test.6.",
+    "Owner must provide/capture the real cURL for each live business source on the target laptop; private endpoints cannot be embedded in a public release."
   ],
   "known_issues": [
-    "v1.3.2-test.4 was rejected for repeated Not Responding and poor UI.",
-    "v1.3.2-test.5 locks the Win32 UI to one OS thread and rebuilds the shell; owner verification pending."
+    "v1.3.2-test.5 is responsive but cannot sync because credentials exist while no local source request definitions are configured.",
+    "test.6 removes manual runtime-profile provisioning from the normal workflow and requires one-time in-app setup for the two real data sources."
   ],
   "test_status": {
     "v1.1": "superseded",
@@ -116,7 +116,8 @@
     "updater_test1_to_test2": "owner_runtime_pending",
     "v1.3.2-test.3": "owner_rejected_not_responding_ui_broken",
     "v1.3.2-test.4": "owner_rejected_not_responding_and_ui_unacceptable",
-    "v1.3.2-test.5": "published_owner_runtime_and_ui_review_pending"
+    "v1.3.2-test.5": "runtime_stability_pass_sync_source_setup_missing",
+    "v1.3.2-test.6": "pr_ci_pending"
   },
   "security": {
     "public_repo": true,
@@ -157,8 +158,8 @@
     "stable_release": "pending_owner_acceptance",
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
-    "candidate_release": "v1.3.2-test.5",
-    "candidate_release_status": "published_prerelease",
+    "candidate_release": "v1.3.2-test.6",
+    "candidate_release_status": "requested_pr_ci_pending",
     "candidate_publish_run_id": 35422993953,
     "main_build_run_id": null,
     "pr_ci_state_guard_run_id": 35422949366,
@@ -184,6 +185,12 @@
     "storage": "Windows DPAPI current user",
     "plaintext_profile_removed_after_import": "best_effort",
     "live_binding": "implemented",
-    "private_endpoints_in_public_repo": false
+    "private_endpoints_in_public_repo": false,
+    "normal_owner_workflow": "in_app_source_setup",
+    "manual_profile_required": false,
+    "sources": [
+      "payroll-productivity",
+      "active-picking"
+    ]
   }
 }
