@@ -53,6 +53,8 @@ const (
 	WM_SETREDRAW                 = 0x000B
 	WM_SYSCOMMAND                = 0x0112
 	WM_SIZE                      = 0x0005
+	WM_SETTINGCHANGE             = 0x001A
+	WM_DISPLAYCHANGE             = 0x007E
 	WM_COMMAND                   = 0x0111
 	WM_NOTIFY                    = 0x004E
 	WM_TIMER                     = 0x0113
@@ -60,6 +62,7 @@ const (
 	WM_APP                       = 0x8000
 	WM_APP_STATUS                = WM_APP + 1
 	WM_APP_REFRESH               = WM_APP + 2
+	WM_APP_FIT_WORKAREA          = WM_APP + 3
 	SW_SHOW                      = 5
 	SW_MAXIMIZE                  = 3
 	CW_USEDEFAULT                = 0x80000000
@@ -108,6 +111,14 @@ const (
 	SC_SIZE                      = 0xF000
 	SC_MOVE                      = 0xF010
 	SC_RESTORE                   = 0xF120
+	SC_MAXIMIZE                  = 0xF030
+	SIZE_RESTORED                = 0
+	SIZE_MINIMIZED               = 1
+	MONITOR_DEFAULTTONEAREST     = 2
+	COLOR_WINDOW                 = 5
+	BS_AUTORADIOBUTTON           = 0x00000009
+	BS_PUSHLIKE                  = 0x00001000
+	WS_GROUP                     = 0x00020000
 	OFN_OVERWRITEPROMPT          = 0x00000002
 	OFN_PATHMUSTEXIST            = 0x00000800
 )
@@ -162,6 +173,12 @@ type MSG struct {
 }
 type POINT struct{ X, Y int32 }
 type RECT struct{ Left, Top, Right, Bottom int32 }
+type MONITORINFO struct {
+	CbSize    uint32
+	RcMonitor RECT
+	RcWork    RECT
+	DwFlags   uint32
+}
 type NMHDR struct {
 	HwndFrom, IdFrom uintptr
 	Code             uint32
@@ -300,6 +317,8 @@ var (
 	pKillTimer           = user32.NewProc("KillTimer")
 	pMessageBox          = user32.NewProc("MessageBoxW")
 	pInvalidateRect      = user32.NewProc("InvalidateRect")
+	pMonitorFromWindow   = user32.NewProc("MonitorFromWindow")
+	pGetMonitorInfo      = user32.NewProc("GetMonitorInfoW")
 	pCreateFont          = gdi32.NewProc("CreateFontW")
 	pInitCommon          = comctl32.NewProc("InitCommonControls")
 	pCryptProtect        = crypt32.NewProc("CryptProtectData")
@@ -337,9 +356,55 @@ var (
 	logDropped                                                                                           atomic.Uint64
 	rendering                                                                                            atomic.Bool
 	lastTelemetry                                                                                        time.Time
+	fittingWindow                                                                                        atomic.Bool
+	uiHeartbeat                                                                                          atomic.Int64
 )
 
 func maxInt(a, b int) int { if a > b { return a }; return b }
+
+func fitWindowToWorkArea() {
+	if mainWnd == 0 || !fittingWindow.CompareAndSwap(false, true) { return }
+	defer fittingWindow.Store(false)
+	monitor, _, _ := pMonitorFromWindow.Call(mainWnd, MONITOR_DEFAULTTONEAREST)
+	if monitor == 0 { return }
+	mi := MONITORINFO{CbSize: uint32(unsafe.Sizeof(MONITORINFO{}))}
+	ok, _, _ := pGetMonitorInfo.Call(monitor, uintptr(unsafe.Pointer(&mi)))
+	if ok == 0 { return }
+	w := int(mi.RcWork.Right - mi.RcWork.Left)
+	h := int(mi.RcWork.Bottom - mi.RcWork.Top)
+	if w <= 0 || h <= 0 { return }
+	pMoveWindow.Call(mainWnd,
+		uintptr(mi.RcWork.Left), uintptr(mi.RcWork.Top),
+		uintptr(w), uintptr(h), 1)
+	logEvent("INFO", "WINDOW_FIT_WORKAREA",
+		"x", strconv.Itoa(int(mi.RcWork.Left)),
+		"y", strconv.Itoa(int(mi.RcWork.Top)),
+		"w", strconv.Itoa(w),
+		"h", strconv.Itoa(h))
+}
+
+func uiWatchdog() {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	reported := false
+	for range ticker.C {
+		ns := uiHeartbeat.Load()
+		if ns == 0 { continue }
+		blocked := time.Since(time.Unix(0, ns))
+		if blocked >= 6*time.Second {
+			if reported { continue }
+			reported = true
+			buf := make([]byte, 128*1024)
+			n := runtime.Stack(buf, true)
+			logEvent("ERROR", "UI_WATCHDOG_STALL",
+				"blocked_ms", strconv.FormatInt(blocked.Milliseconds(), 10),
+				"page", strconv.Itoa(currentPage),
+				"stack", string(buf[:n]))
+			continue
+		}
+		reported = false
+	}
+}
 
 func ptr(s string) *uint16 { p, _ := syscall.UTF16PtrFromString(s); return p }
 func create(class, text string, style uint32, x, y, w, h int, parent, menu uintptr) uintptr {
@@ -559,6 +624,7 @@ func selectedRow() ([]any, bool) {
 }
 
 func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
+	uiHeartbeat.Store(time.Now().UnixNano())
 	defer func() {
 		if v := recover(); v != nil {
 			logEvent("ERROR", "UI_PANIC", "message", fmt.Sprint(v), "stack", string(debug.Stack()))
@@ -581,15 +647,27 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
 		pSetTimer.Call(hwnd, TIMER_METRICS, 2000, 0)
 		go checkUpdateQuiet()
 		return 0
+
 	case WM_SYSCOMMAND:
 		cmd := wParam & 0xFFF0
-		if cmd == SC_RESTORE || cmd == SC_SIZE || cmd == SC_MOVE {
-			pShowWindow.Call(hwnd, SW_MAXIMIZE)
+		// Never force SW_MAXIMIZE from inside WM_SYSCOMMAND. That can create an
+		// unstable Win32 sizing/message loop on some Windows builds.
+		// The app is instead pinned to the monitor work area (taskbar excluded).
+		if cmd == SC_SIZE || cmd == SC_MOVE || cmd == SC_MAXIMIZE {
 			return 0
 		}
+
 	case WM_SIZE:
 		layout()
+		if wParam == SIZE_RESTORED && !fittingWindow.Load() {
+			pPostMessage.Call(hwnd, WM_APP_FIT_WORKAREA, 0, 0)
+		}
 		return 0
+
+	case WM_SETTINGCHANGE, WM_DISPLAYCHANGE:
+		pPostMessage.Call(hwnd, WM_APP_FIT_WORKAREA, 0, 0)
+		return 0
+
 	case WM_COMMAND:
 		id := int(uint16(wParam & 0xffff))
 		code := int(uint16((wParam >> 16) & 0xffff))
@@ -600,8 +678,10 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
 			logEvent("WARN", "UI_COMMAND_SLOW", "id", strconv.Itoa(id), "code", strconv.Itoa(code), "elapsed_ms", strconv.FormatInt(elapsed.Milliseconds(), 10))
 		}
 		return 0
+
 	case WM_NOTIFY:
 		return handleNotify(lParam)
+
 	case WM_TIMER:
 		if wParam == TIMER_METRICS {
 			if currentPage == ID_NAV_OVERVIEW { renderOverviewMetrics() }
@@ -611,20 +691,28 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
 			}
 			return 0
 		}
+
 	case WM_APP_STATUS:
 		statusMu.Lock()
 		text := pendingStatus
 		statusMu.Unlock()
 		setText(statusText, text)
 		return 0
+
 	case WM_APP_REFRESH:
 		renderPage(currentPage)
 		return 0
+
+	case WM_APP_FIT_WORKAREA:
+		fitWindowToWorkArea()
+		layout()
+		return 0
+
 	case WM_DESTROY:
 		pKillTimer.Call(hwnd, TIMER_METRICS)
 		logRuntimeSnapshot("APP_STATE_EXIT")
 		logEvent("INFO", "APP_EXIT")
-		flushLogs(1500 * time.Millisecond)
+		flushLogs(1200 * time.Millisecond)
 		pPostQuit.Call(0)
 		return 0
 	}
@@ -647,8 +735,10 @@ func createShell() {
 	syncButton = create("BUTTON", "ĐỒNG BỘ", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 0, 10, 120, 32, mainWnd, ID_SYNC)
 	setFont(syncButton, fontSmall)
 
-	for _, id := range navOrder {
-		b := create("BUTTON", navLabels[id], WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 0, 0, 140, 38, mainWnd, uintptr(id))
+	for i, id := range navOrder {
+		style := uint32(WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTORADIOBUTTON|BS_PUSHLIKE)
+		if i == 0 { style |= WS_GROUP }
+		b := create("BUTTON", navLabels[id], style, 0, 0, 140, 38, mainWnd, uintptr(id))
 		setFont(b, fontSmall)
 		nav[id] = b
 	}
@@ -666,7 +756,7 @@ func layout() {
 	move(syncButton, maxInt(130, w-138), 10, 118, 32)
 
 	navY := h - 54
-	left, gap := 16, 6
+	left, gap := 12, 5
 	avail := w - left*2 - gap*(len(navOrder)-1)
 	bw := avail / len(navOrder)
 	if bw < 92 { bw = 92 }
@@ -676,11 +766,10 @@ func layout() {
 
 	if tableWnd != 0 {
 		top := 145
-		if currentPage == ID_NAV_PICK { top = 145 }
-		move(tableWnd, 24, top, maxInt(760, w-48), maxInt(240, navY-top-12))
+		move(tableWnd, 24, top, maxInt(760, w-48), maxInt(220, navY-top-12))
 	}
 	if logEdit != 0 {
-		move(logEdit, 24, 145, maxInt(760, w-48), maxInt(240, navY-157))
+		move(logEdit, 24, 145, maxInt(760, w-48), maxInt(220, navY-157))
 	}
 }
 
@@ -698,6 +787,11 @@ func renderPage(id int) {
 	start := time.Now()
 	previous := currentPage
 	currentPage = id
+	for navID, h := range nav {
+		state := uintptr(0)
+		if navID == id { state = BST_CHECKED }
+		pSendMessage.Call(h, BM_SETCHECK, state, 0)
+	}
 	logEvent("INFO", "UI_PAGE_BEGIN", "from", strconv.Itoa(previous), "to", strconv.Itoa(id))
 	destroyPage()
 	switch id {
@@ -783,11 +877,11 @@ func renderUserPDA() {
 	renderTable(t, 125)
 }
 func renderLog() {
-	pageTitle("LOG", "Một luồng log duy nhất cho vận hành, hiệu năng, UI, đồng bộ, mạng và lỗi; tự loại thông tin nhạy cảm.")
+	pageTitle("LOG", "Log vận hành, hiệu năng, UI, đồng bộ, mạng và lỗi; tự loại thông tin nhạy cảm.")
 	button(ID_LOG_OPEN, "MỞ THƯ MỤC LOG", 24, 108, 170, 32)
 	button(ID_LOG_EXPORT, "XUẤT LOG...", 204, 108, 135, 32)
-	static("Log tự ghi nền. Xuất log tạo một file tổng hợp để gửi Owner/AI phân tích.", 354, 113, 760, 24, false)
-	logEdit = create("EDIT", readLogTail(700), WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY, 24, 145, 1200, 560, mainWnd, 0)
+	static("Màn hình chỉ hiển thị log gần nhất để giữ UI nhẹ. File xuất vẫn gom toàn bộ log.", 354, 113, 820, 24, false)
+	logEdit = create("EDIT", readLogTail(350), WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY, 24, 145, 1200, 560, mainWnd, 0)
 	setFont(logEdit, fontSmall)
 	addPage(logEdit)
 }
@@ -865,7 +959,7 @@ func handleCommand(id, code int, source uintptr) {
 	case ID_LOG_OPEN:
 		openFolder(logDir())
 	case ID_LOG_EXPORT:
-		if path, ok := chooseLogExportPath(); ok { go exportLogTo(path) }
+		startLogExport()
 	case ID_ACTIVE_STATUS:
 		if code == 1 {
 			settings.Business.ActiveStatus = comboText(activeCombo)
@@ -1625,11 +1719,10 @@ func logEvent(level, event string, kv ...string) {
 }
 
 func readLogTail(max int) string {
-	flushLogs(500 * time.Millisecond)
 	f, e := os.Open(filepath.Join(logDir(), "supra_"+time.Now().Format("20060102")+".log"))
 	if e != nil { return "Chưa có log." }
 	defer f.Close()
-	const maxBytes int64 = 1024 * 1024
+	const maxBytes int64 = 512 * 1024
 	if st, err := f.Stat(); err == nil && st.Size() > maxBytes {
 		_, _ = f.Seek(-maxBytes, io.SeekEnd)
 	}
@@ -1701,7 +1794,7 @@ func chooseLogExportPath() (string, bool) {
 	copy(buf, syscall.StringToUTF16(name))
 	of := OPENFILENAME{
 		LStructSize: uint32(unsafe.Sizeof(OPENFILENAME{})),
-		HwndOwner: mainWnd,
+		HwndOwner: 0,
 		LpstrFile: &buf[0],
 		NMaxFile: uint32(len(buf)),
 		LpstrTitle: ptr("Chọn nơi lưu file LOG"),
@@ -1711,6 +1804,22 @@ func chooseLogExportPath() (string, bool) {
 	r, _, _ := pGetSaveFileName.Call(uintptr(unsafe.Pointer(&of)))
 	if r == 0 { return "", false }
 	return syscall.UTF16ToString(buf), true
+}
+
+func startLogExport() {
+	setStatus("Đang mở cửa sổ chọn nơi lưu LOG…")
+	logEvent("INFO", "LOG_EXPORT_DIALOG_OPEN")
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		path, ok := chooseLogExportPath()
+		if !ok {
+			setStatus("Đã hủy xuất LOG.")
+			logEvent("INFO", "LOG_EXPORT_DIALOG_CANCEL")
+			return
+		}
+		exportLogTo(path)
+	}()
 }
 
 func exportLogTo(path string) {
@@ -2039,6 +2148,9 @@ func main() {
 	pInitCommon.Call()
 	ensureDirs()
 	go logWriter()
+	uiHeartbeat.Store(time.Now().UnixNano())
+	go uiWatchdog()
+
 	hInst, _, _ := kernel32.NewProc("GetModuleHandleW").Call(0)
 	cls := ptr("SupraProductivityWindow")
 	wc := WNDCLASSEX{
@@ -2046,11 +2158,13 @@ func main() {
 		LpfnWndProc: syscall.NewCallback(wndProc),
 		HInstance: hInst,
 		HCursor: func() uintptr { r, _, _ := pLoadCursor.Call(0, 32512); return r }(),
+		HbrBackground: uintptr(COLOR_WINDOW + 1),
 		LpszClassName: cls,
 	}
 	if r, _, _ := pRegisterClass.Call(uintptr(unsafe.Pointer(&wc))); r == 0 {
 		panic("RegisterClassExW failed")
 	}
+
 	title := appName + " · " + appVersion
 	style := uint32(WS_VISIBLE | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN)
 	hwnd, _, _ := pCreateWindow.Call(
@@ -2058,12 +2172,15 @@ func main() {
 		uintptr(unsafe.Pointer(cls)),
 		uintptr(unsafe.Pointer(ptr(title))),
 		uintptr(style),
-		CW_USEDEFAULT, CW_USEDEFAULT, 1366, 768,
+		CW_USEDEFAULT, CW_USEDEFAULT, 1280, 760,
 		0, 0, hInst, 0,
 	)
 	if hwnd == 0 { panic("CreateWindowExW failed") }
-	pShowWindow.Call(hwnd, SW_MAXIMIZE)
+
+	pShowWindow.Call(hwnd, SW_SHOW)
+	fitWindowToWorkArea()
 	pUpdateWindow.Call(hwnd)
+
 	var msg MSG
 	for {
 		r, _, _ := pGetMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)

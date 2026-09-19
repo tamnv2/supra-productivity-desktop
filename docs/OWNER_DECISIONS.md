@@ -73,3 +73,11 @@ Canonical record of explicit owner decisions. Newest explicit owner instruction 
 - Use the original Excel workbook as the UI/business reference, but do not copy hidden-sheet plumbing or expose sensitive configuration.
 - Detailed keep/remove decisions from the Excel workbook are pending Owner confirmation; see `docs/EXCEL_PARITY_PROPOSAL.md`.
 
+## 2026-09-19 — taskbar-visible work-area full window
+
+- “Full” means the application fills the Windows monitor **work area**, not fullscreen.
+- Windows taskbar must remain visible.
+- Minimize to taskbar is allowed.
+- Restore-down/manual resize/manual move must not produce a smaller app window.
+- The implementation must not force maximize recursively from the Win32 system-command handler.
+
