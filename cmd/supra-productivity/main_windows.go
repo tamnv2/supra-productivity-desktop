@@ -1477,6 +1477,11 @@ func startSync() {
 	}()
 }
 
+var reHeader = regexp.MustCompile(`(?is)-H\s+(?:'([^']*)'|"([^"]*)")`)
+var reURL = regexp.MustCompile(`(?is)(?:--url\s+)?(?:'(https?://[^']+)'|"(https?://[^"]+)"|(https?://\S+))`)
+var reMethod = regexp.MustCompile(`(?i)(?:-X|--request)\s+['"]?([A-Z]+)`)
+var reBody = regexp.MustCompile(`(?is)(?:--data-raw|--data-binary|--data)\s+(?:'([^']*)'|"([^"]*)")`)
+
 func parseCurl(raw string) (credentials, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
