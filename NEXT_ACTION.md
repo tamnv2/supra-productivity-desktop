@@ -2,35 +2,37 @@
 
 Updated: 2026-09-19
 
+## Current blocker
+
+The public GitHub continuity/security bootstrap is complete.
+
+The current **V1.3 TEST package is binary-only** in the active handoff artifacts:
+- EXE
+- test guide
+- changelog
+- SHA256
+
+It does **not** contain the source tree used to build V1.3.
+
+Therefore a reproducible GitHub Actions build/release is **not yet complete** and must not be represented as complete.
+
 ## Immediate next action
 
-**Bind the locally encrypted runtime profile to full live operational synchronization, then verify the GitHub-built EXE.**
+**Restore/create the canonical source tree that reproduces the current V1.3 behavior, then commit it after a public-repo security scrub.**
 
-Order:
+Required order:
 
-1. Implement Active-Picking and Payroll/Productivity live request execution from the DPAPI-protected runtime profile.
-2. Parse/normalize live responses and feed the existing Pick/Pack/Shift/User-PDA business engines without embedding private endpoints in source.
-3. Complete the remaining updater gap: manual/offline package selection and stronger startup-health rollback.
-4. Trigger `Build Windows Portable` through a normal external push or manual Actions dispatch and verify the artifact.
-5. Owner tests the GitHub-built EXE on PDA and restricted Office network.
-6. Analyze diagnostics privately; commit only sanitized findings.
-7. Update canonical state after every verified result.
+1. Restore/recreate V1.3-equivalent source.
+2. Run public-repo secret/sensitive-data validation.
+3. Commit canonical source to `main`.
+4. Add Windows x64 GitHub Actions build.
+5. Verify GitHub-built EXE against local V1.3 behavior.
+6. Add tagged GitHub Release: EXE + ZIP + SHA256 + release notes.
+7. Add GitHub updater with non-fatal failure and manual/offline fallback for restricted Office network.
+8. Continue owner testing on PDA + Office and record only sanitized diagnostic findings.
 
-## Already completed
+## Do not do
 
-- sanitized public source imported;
-- public-repo/state guards;
-- Windows x64 build workflow;
-- versioned Release workflow;
-- local DPAPI runtime-profile provisioning;
-- staged GitHub updater download + SHA256 verification + backup + replace/restart;
-- local core tests, Go vet, Windows cross-build, and binary public scan passed.
-
-## Acceptance focus
-
-- no production credential/private endpoint/raw operational data in public GitHub;
-- no UI freeze during sync/update;
-- core operation independent of GitHub availability;
-- full live parity restored only through local private profile;
-- PICK event-storm/flicker does not regress;
-- owner explicitly accepts before stable release.
+- Do not upload or reverse-publish real token/cookie/signature values.
+- Do not commit raw diagnostic ZIPs or operational spreadsheets.
+- Do not call GitHub build/release "done" before canonical source builds successfully in Actions.
