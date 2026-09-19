@@ -2,41 +2,43 @@
 
 Updated: 2026-09-19
 
-## Published candidate
+## Owner finding on test.3
 
-**v1.3.2-test.3** is published.
+`v1.3.2-test.3` is rejected:
+- UI rendered incorrectly with grey/white bands.
+- App entered Windows **Not Responding**.
+- Owner requires “full” to mean full **work area with taskbar visible**, not fullscreen/taskbar coverage.
 
-Automated verification before merge:
-- Project State Guard `35420791580` — PASS
-- Windows Portable `35420791549` — PASS
-- Unit tests — PASS
-- Go vet — PASS
-- Windows x64 cross-build — PASS
-- Public binary scan — PASS
-- Packaging/artifact — PASS
+The exported log shows the failure was not caused by heavy data:
+- payroll/pick/pack/active rows were all zero;
+- heap remained very small;
+- only a few goroutines were active;
+- Save As command 401 held the main UI command for 2531 ms.
 
-## Included in test.3
+## test.4 corrective candidate
 
-1. Excel-like bottom business navigation.
-2. Wider operational content/table area.
-3. One comprehensive sanitized **LOG** instead of a separate diagnostic subsystem.
-4. Native **XUẤT LOG...** Save As dialog.
-5. Log coverage for UI page/command timing, table-fill timing, sync/network/update, periodic RAM/runtime state, row counts, panic capture and dropped-log detection.
-6. Re-entrant page rendering blocked.
-7. Same-tab clicks no longer rebuild the page.
-8. Checkbox/combo refresh is deferred through the UI message queue.
-9. ListView redraw is disabled during bulk fill to reduce freezes.
-10. App always opens maximized; restore-down/resize/move is blocked; minimize-to-taskbar remains allowed.
-11. Original Excel workbook has been analyzed and a sanitized keep/convert/remove proposal is stored in `docs/EXCEL_PARITY_PROPOSAL.md`.
+1. Remove forced `SW_MAXIMIZE` from `WM_SYSCOMMAND`.
+2. Pin outer window to monitor `rcWork`; Windows taskbar remains visible.
+3. Block resize/move/explicit maximize without recursively changing window state.
+4. Keep minimize-to-taskbar.
+5. Move the native Log Save As dialog to its own locked OS thread.
+6. Keep Log aggregation/background I/O off the UI thread.
+7. Remove synchronous Log flush from Log-page rendering.
+8. Limit on-screen Log tail while exported Log remains comprehensive.
+9. Give the parent Win32 window a standard background brush so static controls no longer appear as broken strips.
+10. Keep bottom Excel-like tabs with a visible selected state.
+11. Add `UI_WATCHDOG_STALL` stack capture for any main-thread stall >=6 seconds.
 
-## Owner test now
+## Immediate next action
 
+Run PR CI for **v1.3.2-test.4**. Publish only after full CI passes.
+
+Owner runtime verification after publication:
+- taskbar always visible;
+- app fills remaining monitor work area;
+- minimize/restore works and restores full work-area size;
+- no restore-down/resize smaller;
 - rapidly switch all bottom tabs;
-- operate Pick / Pack / Phân ca controls;
-- minimize and restore — it must return maximized;
-- try restore-down/resize — it must stay maximized;
-- open LOG;
-- use **XUẤT LOG...** and choose a save location;
-- if any freeze/hang remains, send that exported Log.
-
-Do not implement additional Excel-parity business functions until Owner confirms the pending keep/remove items.
+- open/export Log;
+- leave app idle for at least one minute;
+- if Windows still shows Not Responding, export/send the new Log; watchdog stack should identify the exact blocking call.
