@@ -2,57 +2,64 @@
 
 The repository is public, so private operational endpoint bindings are deliberately excluded from source control.
 
-## Goal
+## Purpose
 
-A GitHub-built public executable must be able to receive the site-specific operational bindings **locally**, without publishing them in:
+A GitHub-built public executable receives site-specific live-data bindings locally without publishing them in source code, Git history, Actions logs, Release notes, or public artifacts.
 
-- source files;
-- Git history;
-- GitHub Actions logs;
-- Release notes;
-- public release metadata.
+## Implemented provisioning foundation
 
-## Model
+The application now supports a local provisioning file named:
 
-The application has two separate local secret/config layers:
+`SupraProductivity.profile.json`
 
-1. **Session credentials**
-   - supplied by the user by pasting Copy-as-cURL (bash);
-   - token/cookie/signature values are parsed locally;
-   - persisted with Windows DPAPI for the current Windows user.
+Place it beside `SupraProductivity.exe`.
 
-2. **Runtime operational profile**
-   - contains private data-source endpoint/request templates needed for live Active-Picking and Payroll/Pick/Pack synchronization;
-   - provisioned locally;
-   - stored DPAPI-encrypted under the current Windows user;
-   - never committed to this repository.
+On startup the app:
 
-## Public schema only
+1. detects the provisioning file;
+2. validates `schema_version = 1` and the request bindings;
+3. encrypts the profile with Windows DPAPI for the current Windows user;
+4. stores the encrypted profile under the local secure application directory;
+5. removes the plaintext provisioning file after successful import where possible;
+6. logs only the sanitized profile ID and binding count — never URLs or credentials.
 
-The public code may know binding names such as:
+A synthetic example is available at:
+
+`samples/public/runtime-profile.example.json`
+
+## Two local layers
+
+### Session credentials
+- user pastes Copy-as-cURL (bash);
+- token/cookie/signature values are extracted locally;
+- sensitive fields are masked by default;
+- values are persisted with Windows DPAPI.
+
+### Runtime operational profile
+- contains private request templates/bindings for operational data sources;
+- is provisioned locally;
+- is DPAPI-protected;
+- is never committed to the public repository.
+
+## Public schema
+
+The public code may know generic binding names such as:
 
 - `active-picking`
 - `payroll-productivity`
 
-but must not contain their production hosts, URLs, cookies, tokens, or signatures.
+but production hosts, paths, payload templates, tokens, cookies, and signatures must remain private.
 
-## Provisioning direction
+## Next implementation step
 
-The supported provisioning path will be:
+The profile import/storage layer is implemented. The remaining work is to bind those locally provisioned requests to the live parsers/engines for:
 
-1. place a private provisioning file beside the EXE or select it locally;
-2. application validates schema and required binding names;
-3. application encrypts the profile with Windows DPAPI;
-4. plaintext provisioning file is deleted after successful import where possible;
-5. logs record only profile version/binding names, never URLs or credentials.
+- Active Picking;
+- Payroll/Productivity → Pick/Pack/Shift/User-PDA as applicable.
 
 ## Office / PDA
 
-The runtime profile is independent of GitHub. Once provisioned, core operations must continue when:
-
-- GitHub is blocked;
-- public Internet is blocked;
-- internal operational services remain reachable.
+The runtime profile is independent of GitHub. Once provisioned, core operations must continue when GitHub/public Internet is blocked but the internal services remain reachable.
 
 ## Security rule
 
