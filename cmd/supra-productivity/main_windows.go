@@ -42,10 +42,6 @@ const (
 	WS_BORDER                    = 0x00800000
 	WS_VSCROLL                   = 0x00200000
 	WS_HSCROLL                   = 0x00100000
-	WS_CAPTION                   = 0x00C00000
-	WS_SYSMENU                   = 0x00080000
-	WS_MINIMIZEBOX               = 0x00020000
-	WS_CLIPCHILDREN              = 0x02000000
 	WM_CREATE                    = 0x0001
 	WM_DESTROY                   = 0x0002
 	WM_CLOSE                     = 0x0010
@@ -54,7 +50,6 @@ const (
 	WM_NOTIFY                    = 0x004E
 	WM_TIMER                     = 0x0113
 	WM_SETFONT                   = 0x0030
-	WM_CTLCOLORSTATIC            = 0x0138
 	WM_APP                       = 0x8000
 	WM_APP_STATUS                = WM_APP + 1
 	WM_APP_REFRESH               = WM_APP + 2
@@ -66,9 +61,7 @@ const (
 	ES_READONLY                  = 0x0800
 	ES_AUTOHSCROLL               = 0x0080
 	BS_PUSHBUTTON                = 0x00000000
-	BS_DEFPUSHBUTTON             = 0x00000001
 	BS_AUTOCHECKBOX              = 0x00000003
-	BS_FLAT                      = 0x00008000
 	CBS_DROPDOWNLIST             = 0x0003
 	CB_ADDSTRING                 = 0x0143
 	CB_SETCURSEL                 = 0x014E
@@ -77,7 +70,6 @@ const (
 	CB_GETLBTEXT                 = 0x0148
 	BM_GETCHECK                  = 0x00F0
 	BM_SETCHECK                  = 0x00F1
-	BM_SETSTYLE                  = 0x00F4
 	BST_CHECKED                  = 1
 	LVS_REPORT                   = 0x0001
 	LVS_SHOWSELALWAYS            = 0x0008
@@ -105,8 +97,6 @@ const (
 	MB_ICONINFORMATION           = 0x40
 	MB_ICONWARNING               = 0x30
 	CRYPTPROTECT_UI_FORBIDDEN    = 0x1
-	SPI_GETWORKAREA              = 0x0030
-	TRANSPARENT                  = 1
 )
 
 const (
@@ -241,86 +231,66 @@ const (
 )
 
 var (
-	user32                = syscall.NewLazyDLL("user32.dll")
-	kernel32              = syscall.NewLazyDLL("kernel32.dll")
-	gdi32                 = syscall.NewLazyDLL("gdi32.dll")
-	comctl32              = syscall.NewLazyDLL("comctl32.dll")
-	crypt32               = syscall.NewLazyDLL("crypt32.dll")
-	shell32               = syscall.NewLazyDLL("shell32.dll")
-	psapi                 = syscall.NewLazyDLL("psapi.dll")
-	uxtheme               = syscall.NewLazyDLL("uxtheme.dll")
-	pRegisterClass        = user32.NewProc("RegisterClassExW")
-	pCreateWindow         = user32.NewProc("CreateWindowExW")
-	pDefWindowProc        = user32.NewProc("DefWindowProcW")
-	pShowWindow           = user32.NewProc("ShowWindow")
-	pUpdateWindow         = user32.NewProc("UpdateWindow")
-	pGetMessage           = user32.NewProc("GetMessageW")
-	pTranslateMessage     = user32.NewProc("TranslateMessage")
-	pDispatchMessage      = user32.NewProc("DispatchMessageW")
-	pPostQuit             = user32.NewProc("PostQuitMessage")
-	pPostMessage          = user32.NewProc("PostMessageW")
-	pSendMessage          = user32.NewProc("SendMessageW")
-	pDestroyWindow        = user32.NewProc("DestroyWindow")
-	pGetClientRect        = user32.NewProc("GetClientRect")
-	pMoveWindow           = user32.NewProc("MoveWindow")
-	pSetWindowText        = user32.NewProc("SetWindowTextW")
-	pGetWindowTextLength  = user32.NewProc("GetWindowTextLengthW")
-	pGetWindowText        = user32.NewProc("GetWindowTextW")
-	pLoadCursor           = user32.NewProc("LoadCursorW")
-	pSetTimer             = user32.NewProc("SetTimer")
-	pKillTimer            = user32.NewProc("KillTimer")
-	pMessageBox           = user32.NewProc("MessageBoxW")
-	pSystemParametersInfo = user32.NewProc("SystemParametersInfoW")
-	pCreateFont           = gdi32.NewProc("CreateFontW")
-	pCreateSolidBrush     = gdi32.NewProc("CreateSolidBrush")
-	pSetBkMode            = gdi32.NewProc("SetBkMode")
-	pSetTextColor         = gdi32.NewProc("SetTextColor")
-	pInitCommon           = comctl32.NewProc("InitCommonControls")
-	pCryptProtect         = crypt32.NewProc("CryptProtectData")
-	pCryptUnprotect       = crypt32.NewProc("CryptUnprotectData")
-	pLocalFree            = kernel32.NewProc("LocalFree")
-	pGlobalMemory         = kernel32.NewProc("GlobalMemoryStatusEx")
-	pShellExecute         = shell32.NewProc("ShellExecuteW")
-	pGetProcMem           = psapi.NewProc("GetProcessMemoryInfo")
-	pGetCurrentProcess    = kernel32.NewProc("GetCurrentProcess")
-	pSetWindowTheme       = uxtheme.NewProc("SetWindowTheme")
+	user32               = syscall.NewLazyDLL("user32.dll")
+	kernel32             = syscall.NewLazyDLL("kernel32.dll")
+	gdi32                = syscall.NewLazyDLL("gdi32.dll")
+	comctl32             = syscall.NewLazyDLL("comctl32.dll")
+	crypt32              = syscall.NewLazyDLL("crypt32.dll")
+	shell32              = syscall.NewLazyDLL("shell32.dll")
+	psapi                = syscall.NewLazyDLL("psapi.dll")
+	pRegisterClass       = user32.NewProc("RegisterClassExW")
+	pCreateWindow        = user32.NewProc("CreateWindowExW")
+	pDefWindowProc       = user32.NewProc("DefWindowProcW")
+	pShowWindow          = user32.NewProc("ShowWindow")
+	pUpdateWindow        = user32.NewProc("UpdateWindow")
+	pGetMessage          = user32.NewProc("GetMessageW")
+	pTranslateMessage    = user32.NewProc("TranslateMessage")
+	pDispatchMessage     = user32.NewProc("DispatchMessageW")
+	pPostQuit            = user32.NewProc("PostQuitMessage")
+	pPostMessage         = user32.NewProc("PostMessageW")
+	pSendMessage         = user32.NewProc("SendMessageW")
+	pDestroyWindow       = user32.NewProc("DestroyWindow")
+	pGetClientRect       = user32.NewProc("GetClientRect")
+	pMoveWindow          = user32.NewProc("MoveWindow")
+	pSetWindowText       = user32.NewProc("SetWindowTextW")
+	pGetWindowTextLength = user32.NewProc("GetWindowTextLengthW")
+	pGetWindowText       = user32.NewProc("GetWindowTextW")
+	pLoadCursor          = user32.NewProc("LoadCursorW")
+	pSetTimer            = user32.NewProc("SetTimer")
+	pKillTimer           = user32.NewProc("KillTimer")
+	pMessageBox          = user32.NewProc("MessageBoxW")
+	pCreateFont          = gdi32.NewProc("CreateFontW")
+	pInitCommon          = comctl32.NewProc("InitCommonControls")
+	pCryptProtect        = crypt32.NewProc("CryptProtectData")
+	pCryptUnprotect      = crypt32.NewProc("CryptUnprotectData")
+	pLocalFree           = kernel32.NewProc("LocalFree")
+	pGlobalMemory        = kernel32.NewProc("GlobalMemoryStatusEx")
+	pShellExecute        = shell32.NewProc("ShellExecuteW")
+	pGetProcMem          = psapi.NewProc("GetProcessMemoryInfo")
+	pGetCurrentProcess   = kernel32.NewProc("GetCurrentProcess")
 )
 
 var (
-	mainWnd, statusText, headerText, headerBand, navBand, tableWnd, settingsCurl, settingsSummary, logEdit, overviewMetric uintptr
-	syncButton, updateButton                                                                                               uintptr
-	nav                                                                                                                    = map[int]uintptr{}
-	navLabels                                                                                                              = map[int]string{
-		ID_NAV_OVERVIEW: "TỔNG QUAN", ID_NAV_ACTIVE: "ĐANG LẤY HÀNG", ID_NAV_PICK: "PICK", ID_NAV_PACK: "PACK",
-		ID_NAV_SHIFT: "PHÂN CA", ID_NAV_USERPDA: "USER / PDA", ID_NAV_LOG: "NHẬT KÝ", ID_NAV_SETTINGS: "THIẾT LẬP",
-	}
-	navOrder                                                                                           = []int{ID_NAV_OVERVIEW, ID_NAV_ACTIVE, ID_NAV_PICK, ID_NAV_PACK, ID_NAV_SHIFT, ID_NAV_USERPDA, ID_NAV_LOG, ID_NAV_SETTINGS}
-	pageControls                                                                                       []uintptr
-	fontNormal, fontSmall, fontBold, fontTitle                                                        uintptr
-	bgBrush, headerBrush, navBrush                                                                     uintptr
-	currentPage                                                                                        = ID_NAV_OVERVIEW
-	currentTable                                                                                       *tableModel
-	tableTop                                                                                           int
-	settings                                                                                           appSettings
-	creds                                                                                              credentials
-	profile                                                                                            runtimeProfile
-	revealSecrets                                                                                      bool
-	live                                                                                                liveState
-	liveMu                                                                                              sync.RWMutex
-	busy                                                                                                atomic.Bool
-	pendingStatus                                                                                       string
-	statusMu                                                                                            sync.Mutex
-	activeCombo, pickShiftCombo, packShiftCombo, shiftManualCombo                                      uintptr
+	mainWnd, statusText, headerText, tableWnd, settingsCurl, settingsSummary, logEdit, overviewMetric uintptr
+	nav                                                                                               = map[int]uintptr{}
+	pageControls                                                                                      []uintptr
+	fontNormal, fontSmall, fontBold                                                                   uintptr
+	currentPage                                                                                       = ID_NAV_OVERVIEW
+	currentTable                                                                                      *tableModel
+	settings                                                                                          appSettings
+	creds                                                                                             credentials
+	profile                                                                                           runtimeProfile
+	revealSecrets                                                                                     bool
+	live                                                                                              liveState
+	liveMu                                                                                            sync.RWMutex
+	busy                                                                                              atomic.Bool
+	pendingStatus                                                                                     string
+	statusMu                                                                                          sync.Mutex
+	activeCombo, pickShiftCombo, packShiftCombo, shiftManualCombo                                     uintptr
 	logQueue                                                                                            = make(chan string, 2048)
 )
 
 func ptr(s string) *uint16 { p, _ := syscall.UTF16PtrFromString(s); return p }
-func rgb(r, g, b byte) uintptr { return uintptr(r) | uintptr(g)<<8 | uintptr(b)<<16 }
-func applyTheme(h uintptr) {
-	if h != 0 {
-		pSetWindowTheme.Call(h, uintptr(unsafe.Pointer(ptr("Explorer"))), 0)
-	}
-}
 func create(class, text string, style uint32, x, y, w, h int, parent, menu uintptr) uintptr {
 	r, _, _ := pCreateWindow.Call(0, uintptr(unsafe.Pointer(ptr(class))), uintptr(unsafe.Pointer(ptr(text))), uintptr(style), uintptr(x), uintptr(y), uintptr(w), uintptr(h), parent, menu, 0, 0)
 	return r
@@ -346,7 +316,6 @@ func destroyPage() {
 	for _, h := range pageControls { pDestroyWindow.Call(h) }
 	pageControls = nil
 	tableWnd = 0
-	tableTop = 0
 	currentTable = nil
 	settingsCurl = 0
 	settingsSummary = 0
@@ -364,8 +333,8 @@ func static(text string, x, y, w, h int, bold bool) uintptr {
 	return c
 }
 func button(id int, text string, x, y, w, h int) uintptr {
-	b := create("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON|BS_FLAT, x, y, w, h, mainWnd, uintptr(id))
-	setFont(b, fontNormal); applyTheme(b); addPage(b); return b
+	b := create("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, x, y, w, h, mainWnd, uintptr(id))
+	setFont(b, fontNormal); addPage(b); return b
 }
 func checkbox(id int, text string, x, y, w, h int, checked bool) uintptr {
 	b := create("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTOCHECKBOX, x, y, w, h, mainWnd, uintptr(id))
@@ -380,7 +349,6 @@ func checked(h uintptr) bool {
 func combo(id int, items []string, selected string, x, y, w, h int) uintptr {
 	c := create("COMBOBOX", "", WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_VSCROLL|CBS_DROPDOWNLIST, x, y, w, h, mainWnd, uintptr(id))
 	setFont(c, fontNormal)
-	applyTheme(c)
 	sel := 0
 	for i, s := range items {
 		pSendMessage.Call(c, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(ptr(s))))
@@ -467,13 +435,10 @@ func compare(a, b any, k colKind) int {
 func renderTable(t core.Table, top int) {
 	var rc RECT
 	pGetClientRect.Call(mainWnd, uintptr(unsafe.Pointer(&rc)))
-	w := int(rc.Right) - 48
-	h := int(rc.Bottom) - top - 78
-	if w < 760 { w = 760 }
-	if h < 240 { h = 240 }
-	lv := create("SysListView32", "", WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SHOWSELALWAYS|WS_HSCROLL|WS_VSCROLL, 24, top, w, h, mainWnd, 0)
+	w := int(rc.Right) - 164; h := int(rc.Bottom) - top - 34
+	if w < 600 { w = 600 }; if h < 260 { h = 260 }
+	lv := create("SysListView32", "", WS_CHILD|WS_VISIBLE|WS_BORDER|LVS_REPORT|LVS_SHOWSELALWAYS|WS_HSCROLL|WS_VSCROLL, 152, top, w, h, mainWnd, 0)
 	setFont(lv, fontNormal)
-	applyTheme(lv)
 	pSendMessage.Call(lv, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT|LVS_EX_GRIDLINES|LVS_EX_DOUBLEBUFFER)
 	addPage(lv)
 	kinds := make([]colKind, len(t.Headers))
@@ -485,7 +450,6 @@ func renderTable(t core.Table, top int) {
 	}
 	currentTable = &tableModel{hwnd: lv, data: t, kinds: kinds, sortCol: -1, asc: true}
 	tableWnd = lv
-	tableTop = top
 	fillTable()
 }
 func fillTable() {
@@ -518,179 +482,52 @@ func selectedRow() ([]any, bool) {
 	return currentTable.data.Rows[int(r)], true
 }
 
-func statusTextColor() uintptr {
-	statusMu.Lock()
-	s := strings.ToLower(pendingStatus)
-	statusMu.Unlock()
-	switch {
-	case strings.Contains(s, "lỗi"), strings.Contains(s, "không thể"), strings.Contains(s, "failed"):
-		return rgb(255, 145, 145)
-	case strings.Contains(s, "đang "), strings.Contains(s, "chưa "), strings.Contains(s, "cảnh báo"):
-		return rgb(255, 211, 105)
-	case strings.Contains(s, "xong"), strings.Contains(s, "sẵn sàng"), strings.Contains(s, "hoạt động"), strings.Contains(s, "đã "):
-		return rgb(120, 220, 160)
-	default:
-		return rgb(224, 233, 242)
-	}
-}
-
 func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
 	case WM_CREATE:
-		mainWnd = hwnd
-		createShell()
-		loadSettings()
-		provisionRuntimeProfile()
-		loadRuntimeProfile()
-		loadCredentials()
+		mainWnd = hwnd; createShell(); loadSettings(); provisionRuntimeProfile(); loadRuntimeProfile(); loadCredentials()
 		logEvent("INFO", "APP_START", "version", appVersion)
-		renderPage(currentPage)
-		pSetTimer.Call(hwnd, TIMER_METRICS, 2000, 0)
-		go checkUpdateQuiet()
-		return 0
+		renderPage(currentPage); pSetTimer.Call(hwnd, TIMER_METRICS, 2000, 0); go checkUpdateQuiet(); return 0
 	case WM_SIZE:
-		layout()
-		return 0
+		layout(); return 0
 	case WM_COMMAND:
-		id := int(uint16(wParam & 0xffff))
-		code := int(uint16((wParam >> 16) & 0xffff))
-		handleCommand(id, code, lParam)
-		return 0
+		id := int(uint16(wParam & 0xffff)); code := int(uint16((wParam >> 16) & 0xffff))
+		handleCommand(id, code, lParam); return 0
 	case WM_NOTIFY:
 		return handleNotify(lParam)
 	case WM_TIMER:
-		if wParam == TIMER_METRICS {
-			if currentPage == ID_NAV_OVERVIEW { renderOverviewMetrics() }
-			return 0
-		}
-	case WM_CTLCOLORSTATIC:
-		hdc, ctl := wParam, lParam
-		pSetBkMode.Call(hdc, TRANSPARENT)
-		switch ctl {
-		case headerBand, headerText:
-			pSetTextColor.Call(hdc, rgb(238, 244, 250))
-			return headerBrush
-		case statusText:
-			pSetTextColor.Call(hdc, statusTextColor())
-			return headerBrush
-		case navBand:
-			pSetTextColor.Call(hdc, rgb(35, 48, 60))
-			return navBrush
-		default:
-			pSetTextColor.Call(hdc, rgb(35, 48, 60))
-			return bgBrush
-		}
+		if wParam == TIMER_METRICS { if currentPage == ID_NAV_OVERVIEW { renderOverviewMetrics() }; return 0 }
 	case WM_APP_STATUS:
-		statusMu.Lock()
-		s := pendingStatus
-		statusMu.Unlock()
-		setText(statusText, s)
-		return 0
+		statusMu.Lock(); s := pendingStatus; statusMu.Unlock(); setText(statusText, s); return 0
 	case WM_APP_REFRESH:
-		renderPage(currentPage)
-		return 0
+		renderPage(currentPage); return 0
 	case WM_DESTROY:
-		pKillTimer.Call(hwnd, TIMER_METRICS)
-		logEvent("INFO", "APP_EXIT")
-		pPostQuit.Call(0)
-		return 0
+		pKillTimer.Call(hwnd, TIMER_METRICS); logEvent("INFO", "APP_EXIT"); pPostQuit.Call(0); return 0
 	}
-	r, _, _ := pDefWindowProc.Call(hwnd, uintptr(msg), wParam, lParam)
-	return r
-}
-
-func refreshNavState() {
-	for _, id := range navOrder {
-		h := nav[id]
-		if h == 0 { continue }
-		label := navLabels[id]
-		style := uintptr(BS_PUSHBUTTON)
-		if id == currentPage {
-			label = "●  " + label
-			style = BS_DEFPUSHBUTTON
-			setFont(h, fontBold)
-		} else {
-			setFont(h, fontSmall)
-		}
-		setText(h, label)
-		pSendMessage.Call(h, BM_SETSTYLE, style, 1)
-	}
+	r, _, _ := pDefWindowProc.Call(hwnd, uintptr(msg), wParam, lParam); return r
 }
 
 func createShell() {
 	fontNormal, _, _ = pCreateFont.Call(18, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI"))))
 	fontSmall, _, _ = pCreateFont.Call(16, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI"))))
-	fontBold, _, _ = pCreateFont.Call(19, 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI Semibold"))))
-	fontTitle, _, _ = pCreateFont.Call(24, 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI Semibold"))))
-	bgBrush, _, _ = pCreateSolidBrush.Call(rgb(245, 247, 250))
-	headerBrush, _, _ = pCreateSolidBrush.Call(rgb(28, 48, 68))
-	navBrush, _, _ = pCreateSolidBrush.Call(rgb(255, 255, 255))
-
-	headerBand = create("STATIC", "", WS_CHILD|WS_VISIBLE, 0, 0, 1500, 58, mainWnd, 0)
-	headerText = create("STATIC", appName+"  ·  "+appVersion, WS_CHILD|WS_VISIBLE|SS_LEFT, 24, 14, 640, 32, mainWnd, 0)
-	setFont(headerText, fontTitle)
-	pendingStatus = "Sẵn sàng"
-	statusText = create("STATIC", pendingStatus, WS_CHILD|WS_VISIBLE|SS_LEFT, 700, 17, 420, 24, mainWnd, 0)
-	setFont(statusText, fontSmall)
-
-	updateButton = create("BUTTON", "CẬP NHẬT", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON|BS_FLAT, 1230, 12, 110, 34, mainWnd, ID_UPDATE)
-	setFont(updateButton, fontSmall)
-	applyTheme(updateButton)
-	syncButton = create("BUTTON", "ĐỒNG BỘ", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_DEFPUSHBUTTON|BS_FLAT, 1350, 12, 126, 34, mainWnd, ID_SYNC)
-	setFont(syncButton, fontBold)
-	applyTheme(syncButton)
-
-	navBand = create("STATIC", "", WS_CHILD|WS_VISIBLE, 0, 810, 1500, 70, mainWnd, 0)
-	for _, id := range navOrder {
-		b := create("BUTTON", navLabels[id], WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON|BS_FLAT, 0, 0, 140, 40, mainWnd, uintptr(id))
-		setFont(b, fontSmall)
-		applyTheme(b)
-		nav[id] = b
-	}
-	refreshNavState()
+	fontBold, _, _ = pCreateFont.Call(20, 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, uintptr(unsafe.Pointer(ptr("Segoe UI Semibold"))))
+	headerText = create("STATIC", appName+"  ·  "+appVersion, WS_CHILD|WS_VISIBLE|SS_LEFT, 152, 10, 700, 30, mainWnd, 0); setFont(headerText, fontBold)
+	statusText = create("STATIC", "Sẵn sàng", WS_CHILD|WS_VISIBLE|SS_LEFT, 760, 14, 550, 24, mainWnd, 0); setFont(statusText, fontSmall)
+	buttonShell := func(id int, text string, y int) { b := create("BUTTON", text, WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 10, y, 130, 34, mainWnd, uintptr(id)); setFont(b, fontSmall); nav[id] = b }
+	for i, item := range []struct{id int; name string}{{ID_NAV_OVERVIEW,"TỔNG QUAN"},{ID_NAV_ACTIVE,"ĐANG LẤY HÀNG"},{ID_NAV_PICK,"PICK"},{ID_NAV_PACK,"PACK"},{ID_NAV_SHIFT,"PHÂN CA"},{ID_NAV_USERPDA,"USER / PDA"},{ID_NAV_LOG,"NHẬT KÝ"},{ID_NAV_SETTINGS,"THIẾT LẬP"}} { buttonShell(item.id, item.name, 58+i*42) }
+	b := create("BUTTON", "ĐỒNG BỘ", WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, 1340, 10, 100, 32, mainWnd, ID_SYNC); setFont(b, fontSmall)
+	u := create("BUTTON", "CẬP NHẬT", WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, 1230, 10, 100, 32, mainWnd, ID_UPDATE); setFont(u, fontSmall)
 }
-
 func layout() {
-	var rc RECT
-	pGetClientRect.Call(mainWnd, uintptr(unsafe.Pointer(&rc)))
+	var rc RECT; pGetClientRect.Call(mainWnd, uintptr(unsafe.Pointer(&rc)))
 	w, h := int(rc.Right), int(rc.Bottom)
-	if w < 800 || h < 500 { return }
-
-	move(headerBand, 0, 0, w, 58)
-	move(headerText, 24, 13, w-760, 34)
-	move(statusText, w-720, 17, 430, 24)
-	move(updateButton, w-276, 12, 112, 34)
-	move(syncButton, w-152, 12, 128, 34)
-
-	navY := h - 58
-	move(navBand, 0, navY-6, w, 64)
-	gap, margin := 6, 12
-	bw := (w - margin*2 - gap*(len(navOrder)-1)) / len(navOrder)
-	if bw < 110 { bw = 110 }
-	x := margin
-	for _, id := range navOrder {
-		move(nav[id], x, navY+5, bw, 42)
-		x += bw + gap
-	}
-
-	if tableWnd != 0 {
-		top := tableTop
-		if top == 0 { top = 168 }
-		move(tableWnd, 24, top, w-48, h-top-78)
-	}
-	if logEdit != 0 { move(logEdit, 24, 174, w-48, h-252) }
-	if settingsCurl != 0 { move(settingsCurl, 24, 162, w-48, 126) }
-	if settingsSummary != 0 { move(settingsSummary, 24, 346, w-48, 92) }
+	move(headerText, 152, 10, w-620, 30); move(statusText, w-690, 14, 430, 24)
+	if tableWnd != 0 { top := 145; if currentPage == ID_NAV_PICK { top = 205 }; move(tableWnd, 152, top, w-164, h-top-34) }
+	if logEdit != 0 { move(logEdit, 152, 145, w-164, h-180) }
 }
-func pageTitle(title, sub string) {
-	t := static(title, 24, 70, 640, 30, true)
-	setFont(t, fontTitle)
-	static(sub, 24, 101, 1120, 24, false)
-}
+func pageTitle(title, sub string) { static(title, 152, 52, 500, 28, true); static(sub, 152, 80, 1000, 24, false) }
 func renderPage(id int) {
-	currentPage = id
-	refreshNavState()
-	destroyPage()
+	currentPage = id; destroyPage()
 	switch id {
 	case ID_NAV_OVERVIEW: renderOverview()
 	case ID_NAV_ACTIVE: renderActive()
@@ -707,11 +544,11 @@ func renderPage(id int) {
 func renderOverview() {
 	pageTitle("TỔNG QUAN", "Vận hành, dữ liệu live và sức khoẻ laptop/ứng dụng theo thời gian thực")
 	liveMu.RLock(); ls := live; liveMu.RUnlock()
-	static(fmt.Sprintf("Pick: %d     Pack: %d     Phân ca: %d", len(ls.Pick.Rows), len(ls.Pack.Rows), len(ls.Shift.Rows)), 24, 136, 900, 30, true)
-	static("HỆ THỐNG & HIỆU NĂNG", 24, 184, 400, 28, true)
-	overviewMetric = static("Đang đo…", 24, 220, 1100, 28, false)
+	static(fmt.Sprintf("Pick: %d     Pack: %d     Phân ca: %d", len(ls.Pick.Rows), len(ls.Pack.Rows), len(ls.Shift.Rows)), 152, 120, 900, 30, true)
+	static("HỆ THỐNG & HIỆU NĂNG", 152, 175, 400, 28, true)
+	overviewMetric = static("Đang đo…", 152, 215, 1000, 28, false)
 	renderOverviewMetrics()
-	static("Dữ liệu được giữ cục bộ. GitHub/public Internet lỗi không làm dừng nghiệp vụ nội bộ.", 24, 286, 1100, 24, false)
+	static("Dữ liệu được giữ cục bộ. GitHub/public Internet lỗi không làm dừng nghiệp vụ nội bộ.", 152, 345, 1000, 24, false)
 }
 func renderOverviewMetrics() {
 	if currentPage != ID_NAV_OVERVIEW { return }
@@ -725,37 +562,37 @@ func renderOverviewMetrics() {
 }
 func renderActive() {
 	pageTitle("ĐANG LẤY HÀNG", "Lọc trạng thái áp dụng ngay; nhấp đúp dòng để xem chi tiết.")
-	static("Trạng thái", 24, 136, 75, 24, false)
-	activeCombo = combo(ID_ACTIVE_STATUS, []string{"Tất cả", "Đang lấy", "Quá thời gian", "Hoàn thành"}, settings.Business.ActiveStatus, 102, 130, 160, 200)
+	static("Trạng thái", 152, 112, 75, 24, false)
+	activeCombo = combo(ID_ACTIVE_STATUS, []string{"Tất cả", "Đang lấy", "Quá thời gian", "Hoàn thành"}, settings.Business.ActiveStatus, 230, 106, 150, 200)
 	liveMu.RLock(); t := live.Active; liveMu.RUnlock()
-	renderTable(filterActive(t, settings.Business.ActiveStatus), 170)
+	renderTable(filterActive(t, settings.Business.ActiveStatus), 145)
 }
 func renderPick() {
 	pageTitle("PICK", "Target, tốc độ, khoán/chẵn-lẻ và kiểm tra 1C1L ở đúng màn nghiệp vụ.")
-	static("Ca", 24, 136, 25, 22, false)
-	pickShiftCombo = combo(ID_PICK_SHIFT, []string{"Tất cả", "Ca 1", "Ca 2", "Ca HC"}, settings.Business.PickShift, 52, 130, 104, 180)
-	checkbox(ID_PICK_DEDUCT, "Khấu trừ SKU", 176, 132, 120, 24, settings.Business.PickDeductSKU)
-	checkbox(ID_PICK_REQUIRE, "Kiểm tra đủ chẵn", 306, 132, 140, 24, settings.Business.PickRequireEven)
-	checkbox(ID_PICK_ALLSITE, "Hiện tất cả Site", 456, 132, 130, 24, settings.Business.ShowAllSite)
-	checkbox(ID_PICK_1C1L, "Bật 1 chẵn 1 lẻ", 596, 132, 140, 24, settings.Business.Enable1C1L)
-	checkbox(ID_PICK_INCOMPLETE, "Chỉ hiện chưa đủ chẵn", 746, 132, 170, 24, settings.Business.ShowIncompleteEven)
-	checkbox(ID_PICK_1C1LERR, "Chỉ hiện lỗi 1C1L", 926, 132, 150, 24, settings.Business.Show1C1LErrors)
+	static("Ca", 152, 112, 25, 22, false)
+	pickShiftCombo = combo(ID_PICK_SHIFT, []string{"Tất cả", "Ca 1", "Ca 2", "Ca HC"}, settings.Business.PickShift, 180, 106, 100, 180)
+	checkbox(ID_PICK_DEDUCT, "Khấu trừ SKU", 300, 108, 120, 24, settings.Business.PickDeductSKU)
+	checkbox(ID_PICK_REQUIRE, "Kiểm tra đủ chẵn", 430, 108, 140, 24, settings.Business.PickRequireEven)
+	checkbox(ID_PICK_ALLSITE, "Hiện tất cả Site", 580, 108, 130, 24, settings.Business.ShowAllSite)
+	checkbox(ID_PICK_1C1L, "Bật 1 chẵn 1 lẻ", 720, 108, 140, 24, settings.Business.Enable1C1L)
+	checkbox(ID_PICK_INCOMPLETE, "Chỉ hiện chưa đủ chẵn", 870, 108, 170, 24, settings.Business.ShowIncompleteEven)
+	checkbox(ID_PICK_1C1LERR, "Chỉ hiện lỗi 1C1L", 1050, 108, 150, 24, settings.Business.Show1C1LErrors)
 	liveMu.RLock(); t := live.Pick; liveMu.RUnlock()
-	renderTable(t, 170)
+	renderTable(t, 145)
 }
 func renderPack() {
 	pageTitle("PACK", "Chỉ hiển thị theo ca; chọn là áp dụng ngay.")
-	static("Hiển thị ca", 24, 136, 85, 22, false)
-	packShiftCombo = combo(ID_PACK_SHIFT, []string{"Tất cả", "Ca 1", "Ca 2", "Ca HC"}, settings.Business.PackShift, 112, 130, 120, 180)
+	static("Hiển thị ca", 152, 112, 85, 22, false)
+	packShiftCombo = combo(ID_PACK_SHIFT, []string{"Tất cả", "Ca 1", "Ca 2", "Ca HC"}, settings.Business.PackShift, 240, 106, 120, 180)
 	liveMu.RLock(); t := live.Pack; liveMu.RUnlock()
-	renderTable(t, 170)
+	renderTable(t, 145)
 }
 func renderShift() {
 	pageTitle("PHÂN CA", "Chọn một dòng, sau đó chọn Tự động / Ca 1 / Ca 2 / Ca HC.")
-	static("Phân ca thủ công", 24, 136, 120, 22, false)
-	shiftManualCombo = combo(ID_SHIFT_MANUAL, []string{"Tự động", "Ca 1", "Ca 2", "Ca HC"}, "Tự động", 152, 130, 130, 180)
+	static("Phân ca thủ công", 152, 112, 120, 22, false)
+	shiftManualCombo = combo(ID_SHIFT_MANUAL, []string{"Tự động", "Ca 1", "Ca 2", "Ca HC"}, "Tự động", 280, 106, 130, 180)
 	liveMu.RLock(); t := live.Shift; liveMu.RUnlock()
-	renderTable(t, 170)
+	renderTable(t, 145)
 }
 func renderUserPDA() {
 	pageTitle("USER / PDA", "Dữ liệu nhân sự live/local; không có dữ liệu cá nhân nào được đóng gói trong bản public.")
@@ -763,25 +600,25 @@ func renderUserPDA() {
 	if len(t.Headers) == 0 {
 		t = core.Table{Headers: []string{"Họ và tên", "Mã nhân viên", "User", "Nhà cung cấp", "Site", "Tuổi nghề"}}
 	}
-	renderTable(t, 136)
+	renderTable(t, 125)
 }
 func renderLog() {
-	pageTitle("NHẬT KÝ", "Sự kiện kỹ thuật được ghi nền cục bộ để không chặn giao diện và tự loại thông tin nhạy cảm.")
-	button(ID_LOG_OPEN, "MỞ THƯ MỤC LOG", 24, 132, 160, 32)
-	button(ID_LOG_EXPORT, "XUẤT CHẨN ĐOÁN", 194, 132, 170, 32)
-	logEdit = create("EDIT", readLogTail(500), WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY, 24, 174, 1100, 520, mainWnd, 0)
-	setFont(logEdit, fontSmall); applyTheme(logEdit); addPage(logEdit)
+	pageTitle("NHẬT KÝ", "Toàn bộ sự kiện kỹ thuật cần thiết, tự loại thông tin nhạy cảm.")
+	button(ID_LOG_OPEN, "MỞ THƯ MỤC LOG", 152, 108, 160, 32)
+	button(ID_LOG_EXPORT, "XUẤT CHẨN ĐOÁN", 322, 108, 170, 32)
+	logEdit = create("EDIT", readLogTail(500), WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY, 152, 145, 1100, 560, mainWnd, 0)
+	setFont(logEdit, fontSmall); addPage(logEdit)
 }
 func renderSettings() {
 	pageTitle("THIẾT LẬP", "Chỉ quản lý phiên/token Dashboard. Nghiệp vụ đặt tại đúng màn Pick/Pack/Phân ca.")
-	static("PHIÊN DASHBOARD · DÁN cURL (BASH)", 24, 136, 420, 24, true)
-	settingsCurl = create("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL, 24, 162, 1100, 126, mainWnd, 0)
-	setFont(settingsCurl, fontNormal); applyTheme(settingsCurl); addPage(settingsCurl)
-	button(ID_CURL_IMPORT, "NHẬN CẤU HÌNH", 24, 300, 150, 32)
-	button(ID_SECRET_TOGGLE, "HIỆN / ẨN", 184, 300, 120, 32)
-	button(ID_NET_TEST, "KIỂM TRA", 314, 300, 120, 32)
-	settingsSummary = static(credentialSummary(), 24, 346, 1100, 92, false)
-	static("Thông tin nhạy cảm chỉ lưu cục bộ theo Windows user. Repo public không chứa credential, endpoint nội bộ, log thô hoặc dữ liệu nhân sự.", 24, 452, 1180, 44, false)
+	static("PHIÊN DASHBOARD · DÁN cURL (BASH)", 152, 120, 420, 24, true)
+	settingsCurl = create("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL, 152, 150, 720, 120, mainWnd, 0)
+	setFont(settingsCurl, fontNormal); addPage(settingsCurl)
+	button(ID_CURL_IMPORT, "NHẬN CẤU HÌNH", 152, 282, 150, 32)
+	button(ID_SECRET_TOGGLE, "HIỆN / ẨN", 312, 282, 120, 32)
+	button(ID_NET_TEST, "KIỂM TRA", 442, 282, 120, 32)
+	settingsSummary = static(credentialSummary(), 152, 330, 900, 120, false)
+	static("Repo public không chứa endpoint nội bộ, credential, log thô hoặc dữ liệu nhân sự. Runtime profile nằm cục bộ theo Windows user.", 152, 465, 1000, 44, false)
 }
 
 func filterActive(t core.Table, status string) core.Table {
@@ -1348,10 +1185,11 @@ func appDir() string {
 func secureDir() string    { return filepath.Join(appDir(), "Secure") }
 func settingsPath() string { return filepath.Join(appDir(), "settings.json") }
 func logDir() string { return filepath.Join(appDir(), "Logs") }
+
 func ensureDirs() {
-	_ = os.MkdirAll(appDir(), 0700)
-	_ = os.MkdirAll(secureDir(), 0700)
-	_ = os.MkdirAll(logDir(), 0700)
+	os.MkdirAll(appDir(), 0700)
+	os.MkdirAll(secureDir(), 0700)
+	os.MkdirAll(logDir(), 0700)
 }
 func loadSettings() {
 	settings = appSettings{DataFolder: filepath.Join(appDir(), "Data"), Business: core.DefaultBusinessSettings()}
@@ -1540,6 +1378,7 @@ func logWriter() {
 		_ = f.Close()
 	}
 }
+
 func logEvent(level, event string, kv ...string) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s %s %s", time.Now().Format(time.RFC3339), level, event)
@@ -1553,6 +1392,7 @@ func logEvent(level, event string, kv ...string) {
 		// UI/business flow must never wait for diagnostics I/O.
 	}
 }
+
 func readLogTail(max int) string {
 	f, e := os.Open(filepath.Join(logDir(), "supra_"+time.Now().Format("20060102")+".log"))
 	if e != nil { return "Chưa có log." }
@@ -1567,6 +1407,7 @@ func readLogTail(max int) string {
 	if len(lines) > max { lines = lines[len(lines)-max:] }
 	return strings.Join(lines, "\r\n")
 }
+
 func shortHash(s string) string { h := sha256.Sum256([]byte(s)); return fmt.Sprintf("%x", h[:4]) }
 func exportDiagnostic() {
 	ensureDirs()
@@ -1582,6 +1423,7 @@ func exportDiagnostic() {
 	setStatus("Đã tạo chẩn đoán: " + name)
 	logEvent("INFO", "DIAGNOSTIC_EXPORT", "file", filepath.Base(name))
 }
+
 func openFolder(path string) { os.MkdirAll(path, 0700); _ = exec.Command("explorer.exe", path).Start() }
 func setStatus(s string) {
 	statusMu.Lock()
@@ -1608,10 +1450,38 @@ type releaseInfo struct {
 
 func latestRelease() (releaseInfo, error) {
 	var out releaseInfo
+	client := http.Client{Timeout: 8 * time.Second}
+	userAgent := "SupraProductivity/" + appVersion
+
+	if strings.Contains(strings.ToLower(appVersion), "-test.") {
+		req, _ := http.NewRequest("GET", "https://api.github.com/repos/"+updateRepo+"/releases?per_page=20", nil)
+		req.Header.Set("User-Agent", userAgent)
+		resp, e := client.Do(req)
+		if e != nil {
+			return out, e
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return out, fmt.Errorf("HTTP %d", resp.StatusCode)
+		}
+		var releases []releaseInfo
+		if e = json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&releases); e != nil {
+			return out, e
+		}
+		for _, r := range releases {
+			if r.Draft {
+				continue
+			}
+			if releaseIsNewer(r.TagName, appVersion) {
+				return r, nil
+			}
+		}
+		return releaseInfo{TagName: appVersion}, nil
+	}
+
 	req, _ := http.NewRequest("GET", "https://api.github.com/repos/"+updateRepo+"/releases/latest", nil)
-	req.Header.Set("User-Agent", "SupraProductivity/"+appVersion)
-	c := http.Client{Timeout: 8 * time.Second}
-	resp, e := c.Do(req)
+	req.Header.Set("User-Agent", userAgent)
+	resp, e := client.Do(req)
 	if e != nil {
 		return out, e
 	}
@@ -1622,6 +1492,56 @@ func latestRelease() (releaseInfo, error) {
 	e = json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out)
 	return out, e
 }
+
+type updateVersion struct {
+	major, minor, patch int
+	test                int
+	prerelease          bool
+	valid               bool
+}
+
+func parseUpdateVersion(v string) updateVersion {
+	v = strings.TrimSpace(strings.TrimPrefix(v, "v"))
+	rx := regexp.MustCompile(`^([0-9]+).([0-9]+).([0-9]+)(?:-test.([0-9]+))?$`)
+	m := rx.FindStringSubmatch(v)
+	if len(m) == 0 {
+		return updateVersion{}
+	}
+	major, _ := strconv.Atoi(m[1])
+	minor, _ := strconv.Atoi(m[2])
+	patch, _ := strconv.Atoi(m[3])
+	out := updateVersion{major: major, minor: minor, patch: patch, valid: true}
+	if len(m) > 4 && m[4] != "" {
+		out.prerelease = true
+		out.test, _ = strconv.Atoi(m[4])
+	}
+	return out
+}
+
+func releaseIsNewer(candidate, current string) bool {
+	c := parseUpdateVersion(candidate)
+	cur := parseUpdateVersion(current)
+	if !c.valid || !cur.valid {
+		return normalizeVersion(candidate) != normalizeVersion(current)
+	}
+	if c.major != cur.major {
+		return c.major > cur.major
+	}
+	if c.minor != cur.minor {
+		return c.minor > cur.minor
+	}
+	if c.patch != cur.patch {
+		return c.patch > cur.patch
+	}
+	if c.prerelease != cur.prerelease {
+		return !c.prerelease && cur.prerelease
+	}
+	if c.prerelease {
+		return c.test > cur.test
+	}
+	return false
+}
+
 func normalizeVersion(v string) string { return strings.TrimPrefix(strings.TrimSpace(v), "v") }
 func checkUpdateQuiet() {
 	r, e := latestRelease()
@@ -1630,10 +1550,11 @@ func checkUpdateQuiet() {
 		return
 	}
 	logEvent("INFO", "UPDATE_CHECK_OK", "latest", r.TagName)
-	if normalizeVersion(r.TagName) != normalizeVersion(appVersion) && appVersion != "dev" {
+	if appVersion != "dev" && releaseIsNewer(r.TagName, appVersion) {
 		setStatus("Có bản cập nhật " + r.TagName + ". Bấm CẬP NHẬT để mở Release.")
 	}
 }
+
 func assetByName(r releaseInfo, name string) (releaseAsset, bool) {
 	for _, a := range r.Assets {
 		if strings.EqualFold(a.Name, name) {
@@ -1766,7 +1687,7 @@ func checkUpdateInteractive() {
 		logEvent("INFO", "UPDATE_CHECK_UNAVAILABLE", "error", e.Error())
 		return
 	}
-	if normalizeVersion(r.TagName) == normalizeVersion(appVersion) {
+	if appVersion == "dev" || !releaseIsNewer(r.TagName, appVersion) {
 		setStatus("Đang dùng bản mới nhất: " + r.TagName)
 		return
 	}
@@ -1781,55 +1702,29 @@ func checkUpdateInteractive() {
 	}
 }
 
-func getWorkArea() RECT {
-	var rc RECT
-	r, _, _ := pSystemParametersInfo.Call(SPI_GETWORKAREA, 0, uintptr(unsafe.Pointer(&rc)), 0)
-	if r == 0 || rc.Right <= rc.Left || rc.Bottom <= rc.Top {
-		return RECT{Left: 0, Top: 0, Right: 1366, Bottom: 768}
-	}
-	return rc
-}
-
 func main() {
 	pInitCommon.Call()
 	ensureDirs()
 	go logWriter()
-
 	hInst, _, _ := kernel32.NewProc("GetModuleHandleW").Call(0)
 	cls := ptr("SupraProductivityWindow")
-	if bgBrush == 0 {
-		bgBrush, _, _ = pCreateSolidBrush.Call(rgb(245, 247, 250))
-	}
-	wc := WNDCLASSEX{
-		CbSize: uint32(unsafe.Sizeof(WNDCLASSEX{})),
-		LpfnWndProc: syscall.NewCallback(wndProc),
-		HInstance: hInst,
-		HCursor: func() uintptr { r, _, _ := pLoadCursor.Call(0, 32512); return r }(),
-		HbrBackground: bgBrush,
-		LpszClassName: cls,
-	}
+	wc := WNDCLASSEX{CbSize: uint32(unsafe.Sizeof(WNDCLASSEX{})), LpfnWndProc: syscall.NewCallback(wndProc), HInstance: hInst, HCursor: func() uintptr { r, _, _ := pLoadCursor.Call(0, 32512); return r }(), LpszClassName: cls}
 	if r, _, _ := pRegisterClass.Call(uintptr(unsafe.Pointer(&wc))); r == 0 {
 		panic("RegisterClassExW failed")
 	}
 	title := appName + " · " + appVersion
-	wa := getWorkArea()
-	style := uint32(WS_VISIBLE | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN)
-	hwnd, _, _ := pCreateWindow.Call(
-		0,
-		uintptr(unsafe.Pointer(cls)),
-		uintptr(unsafe.Pointer(ptr(title))),
-		uintptr(style),
-		uintptr(wa.Left), uintptr(wa.Top),
-		uintptr(wa.Right-wa.Left), uintptr(wa.Bottom-wa.Top),
-		0, 0, hInst, 0,
-	)
-	if hwnd == 0 { panic("CreateWindowExW failed") }
+	hwnd, _, _ := pCreateWindow.Call(0, uintptr(unsafe.Pointer(cls)), uintptr(unsafe.Pointer(ptr(title))), WS_OVERLAPPEDWINDOW|WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 1500, 880, 0, 0, hInst, 0)
+	if hwnd == 0 {
+		panic("CreateWindowExW failed")
+	}
 	pShowWindow.Call(hwnd, SW_SHOW)
 	pUpdateWindow.Call(hwnd)
 	var msg MSG
 	for {
 		r, _, _ := pGetMessage.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
-		if int32(r) <= 0 { break }
+		if int32(r) <= 0 {
+			break
+		}
 		pTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
 		pDispatchMessage.Call(uintptr(unsafe.Pointer(&msg)))
 	}
