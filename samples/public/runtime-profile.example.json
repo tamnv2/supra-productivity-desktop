@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "profile_id": "site-local-example",
+  "bindings": {
+    "active-picking": {
+      "method": "POST",
+      "url": "https://internal.example.invalid/active-picking",
+      "body": "{}",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    },
+    "payroll-productivity": {
+      "method": "POST",
+      "url": "https://internal.example.invalid/payroll-productivity",
+      "body": "{}",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    }
+  }
+}
