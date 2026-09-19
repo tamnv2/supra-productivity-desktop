@@ -6,8 +6,8 @@
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
   "current_version": "v1.3.2-test.4",
-  "current_phase": "win32-runtime-stability-fix",
-  "current_status": "test4_branch_ready_pr_ci_pending",
+  "current_phase": "owner-runtime-verification",
+  "current_status": "test4_published_owner_runtime_verification_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -76,18 +76,21 @@
     "PR #4 passed Project State Guard run 35420791580.",
     "PR #4 passed Windows Portable build run 35420791549 including tests, vet, cross-build, binary scan, packaging and artifact upload.",
     "Merged Excel-like bottom navigation, unified Log and runtime stability candidate to main at e653ff0765124f4c009fded5be14c4ad0e1c7dcf.",
-    "Published GitHub prerelease v1.3.2-test.3 for owner runtime verification."
+    "Published GitHub prerelease v1.3.2-test.3 for owner runtime verification.",
+    "PR #5 passed Project State Guard run 35422413386.",
+    "PR #5 passed Windows Portable build run 35422413376 including tests, vet, Windows x64 cross-build, binary scan and packaging.",
+    "Merged Win32 hang/taskbar-visible work-area fix to main at 8a8ddc00e675eb35486411a7f3c79cc036e6d950.",
+    "Published v1.3.2-test.4 successfully via Publish Owner Test Candidate run 35422493978."
   ],
-  "current_task": "Verify Win32 message-loop hang fix, taskbar-visible work-area sizing, corrected shell background and nonblocking Log export.",
-  "next_action": "Run PR CI for v1.3.2-test.4. Merge/publish only if guards, tests, vet, Windows cross-build and binary scan pass. Owner then verifies no Not Responding, taskbar visibility, minimize/restore, bottom UI and Log export.",
+  "current_task": "Owner runtime verification of Win32 hang fix, taskbar-visible work-area sizing, corrected UI painting and nonblocking Log export.",
+  "next_action": "Owner updates/runs v1.3.2-test.4 and verifies taskbar remains visible, no restore-down/resize smaller, minimize/restore works, rapid bottom-tab switching remains responsive, and Log export no longer stalls UI. If Not Responding remains, send the new exported Log containing UI_WATCHDOG_STALL stack data.",
   "blockers": [
-    "GitHub PR CI/build must pass for v1.3.2-test.4.",
-    "Owner target-laptop verification is required because the hang reproduces only in real Windows GUI runtime.",
+    "Owner target-laptop verification is required because the previous Not Responding issue was runtime-specific.",
     "Excel parity feature keep/remove decisions remain pending Owner confirmation."
   ],
   "known_issues": [
-    "v1.3.2-test.3 reproduced Not Responding on owner laptop despite low app memory and no business rows.",
-    "v1.3.2-test.3 forced-maximize/system-command behavior and synchronous Save As were unsafe and are replaced in test.4.",
+    "v1.3.2-test.3 was rejected for broken UI painting and Not Responding.",
+    "v1.3.2-test.4 replaces the unsafe maximize/system-command behavior and synchronous Save As; owner runtime acceptance is pending.",
     "Target-laptop PDA/Office runtime behavior still requires verification."
   ],
   "test_status": {
@@ -109,7 +112,7 @@
     "v1.3.2-test.2": "published_ci_pass_updater_target",
     "updater_test1_to_test2": "owner_runtime_pending",
     "v1.3.2-test.3": "owner_rejected_not_responding_ui_broken",
-    "v1.3.2-test.4": "pr_ci_pending"
+    "v1.3.2-test.4": "published_owner_runtime_pending"
   },
   "security": {
     "public_repo": true,
@@ -151,11 +154,11 @@
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
     "candidate_release": "v1.3.2-test.4",
-    "candidate_release_status": "requested_pr_ci_pending",
-    "candidate_publish_run_id": null,
+    "candidate_release_status": "published_prerelease",
+    "candidate_publish_run_id": 35422493978,
     "main_build_run_id": null,
-    "pr_ci_state_guard_run_id": 35420791580,
-    "pr_ci_windows_build_run_id": 35420791549
+    "pr_ci_state_guard_run_id": 35422413386,
+    "pr_ci_windows_build_run_id": 35422413376
   },
   "update_pipeline": {
     "latest_stable_release_check": "implemented",
