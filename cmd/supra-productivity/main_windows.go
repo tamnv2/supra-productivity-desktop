@@ -26,8 +26,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/tamnv2/supra-productivity-desktop/internal/core"
 	paycache "github.com/tamnv2/supra-productivity-desktop/internal/cache"
+	"github.com/tamnv2/supra-productivity-desktop/internal/core"
 	liveio "github.com/tamnv2/supra-productivity-desktop/internal/live"
 )
 
@@ -1945,6 +1945,9 @@ func loadSettings() {
 	b, e := os.ReadFile(settingsPath())
 	if e == nil {
 		_ = json.Unmarshal(b, &settings)
+	}
+	if strings.TrimSpace(settings.DataFolder) == "" {
+		settings.DataFolder = filepath.Join(appDir(), "Data")
 	}
 	core.NormalizeBusinessSettings(&settings.Business)
 	ensureDirs()
