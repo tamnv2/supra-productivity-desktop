@@ -6,8 +6,8 @@
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
   "current_version": "v1.3.2-test.6",
-  "current_phase": "live-source-integration",
-  "current_status": "test6_branch_ready_pr_ci_pending",
+  "current_phase": "owner-live-source-runtime-verification",
+  "current_status": "test6_published_owner_source_setup_and_sync_pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -84,17 +84,23 @@
     "PR #6 passed Project State Guard run 35422949366.",
     "PR #6 passed Windows Portable build run 35422949403 including unit tests, vet, Windows x64 cross-build, binary scan and packaging.",
     "Merged Win32 OS-thread affinity and professional-shell rebuild to main at f47249643873e602b028ca9d360c5735392c96c7.",
-    "Published v1.3.2-test.5 successfully via run 35422993953."
+    "Published v1.3.2-test.5 successfully via run 35422993953.",
+    "PR #7 passed Project State Guard run 35424935327.",
+    "PR #7 passed Windows Portable build run 35424935422 including unit tests, vet, Windows x64 cross-build, public binary scan, packaging and artifact upload.",
+    "Merged in-app live source configuration to main at 9b4f956a1d50bb5a17ef94a3826f898c05c546ae.",
+    "Main State Guard run 35424975533 passed.",
+    "Main Windows Portable build run 35424975537 passed.",
+    "Published v1.3.2-test.6 successfully via run 35424975501."
   ],
-  "current_task": "Verify in-app live source configuration and end-to-end sync pipeline without manual runtime-profile provisioning.",
-  "next_action": "Run PR CI for v1.3.2-test.6. If PASS, merge/publish. Owner then configures Sản lượng and Đang lấy hàng once using matching Dashboard cURLs, tests each source, and runs Đồng bộ to verify User/PDA → Phân ca → Pick/Pack plus Active Picking.",
+  "current_task": "Owner configures the two live business sources inside the app and verifies end-to-end sync/output.",
+  "next_action": "Owner updates/runs v1.3.2-test.6. In Thiết lập: choose Sản lượng, paste matching Dashboard cURL, LƯU NGUỒN, KIỂM TRA NGUỒN; repeat for Đang lấy hàng. Then press ĐỒNG BỘ and verify User/PDA, Phân ca, Pick, Pack and Đang lấy hàng. If request succeeds but output is wrong, export/send the sanitized Log.",
   "blockers": [
-    "GitHub PR CI/build must pass for v1.3.2-test.6.",
-    "Owner must provide/capture the real cURL for each live business source on the target laptop; private endpoints cannot be embedded in a public release."
+    "The real Sản lượng and Đang lấy hàng cURLs must be captured on the target laptop because private endpoints cannot be embedded in the public release.",
+    "Owner runtime verification is required for parser/business-output parity."
   ],
   "known_issues": [
-    "v1.3.2-test.5 is responsive but cannot sync because credentials exist while no local source request definitions are configured.",
-    "test.6 removes manual runtime-profile provisioning from the normal workflow and requires one-time in-app setup for the two real data sources."
+    "test.5 sync was blocked because the app required a separate local runtime profile despite having Dashboard credentials.",
+    "test.6 replaces that manual profile requirement with in-app source configuration; actual private-source runtime verification is pending."
   ],
   "test_status": {
     "v1.1": "superseded",
@@ -117,7 +123,7 @@
     "v1.3.2-test.3": "owner_rejected_not_responding_ui_broken",
     "v1.3.2-test.4": "owner_rejected_not_responding_and_ui_unacceptable",
     "v1.3.2-test.5": "runtime_stability_pass_sync_source_setup_missing",
-    "v1.3.2-test.6": "pr_ci_pending"
+    "v1.3.2-test.6": "published_owner_source_setup_and_sync_pending"
   },
   "security": {
     "public_repo": true,
@@ -159,11 +165,12 @@
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
     "candidate_release": "v1.3.2-test.6",
-    "candidate_release_status": "requested_pr_ci_pending",
-    "candidate_publish_run_id": 35422993953,
-    "main_build_run_id": null,
-    "pr_ci_state_guard_run_id": 35422949366,
-    "pr_ci_windows_build_run_id": 35422949403
+    "candidate_release_status": "published_prerelease",
+    "candidate_publish_run_id": 35424975501,
+    "main_build_run_id": 35424975537,
+    "pr_ci_state_guard_run_id": 35424935327,
+    "pr_ci_windows_build_run_id": 35424935422,
+    "main_state_guard_run_id": 35424975533
   },
   "update_pipeline": {
     "latest_stable_release_check": "implemented",
@@ -184,7 +191,7 @@
     "local_provisioning": "implemented",
     "storage": "Windows DPAPI current user",
     "plaintext_profile_removed_after_import": "best_effort",
-    "live_binding": "implemented",
+    "live_binding": "configured from owner-captured cURL per source",
     "private_endpoints_in_public_repo": false,
     "normal_owner_workflow": "in_app_source_setup",
     "manual_profile_required": false,
