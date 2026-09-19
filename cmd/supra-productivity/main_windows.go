@@ -707,6 +707,13 @@ func wndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) (ret uintptr) {
 		provisionRuntimeProfile()
 		loadRuntimeProfile()
 		loadCredentials()
+		if sessionReady() && strings.TrimSpace(creds.URL) != "" {
+			if err := ensureDashboardBindings(); err != nil {
+				logEvent("WARN", "DASHBOARD_BINDING_MIGRATION_FAILED", "error", err.Error())
+			} else {
+				logEvent("INFO", "DASHBOARD_BINDINGS_READY", "binding_count", "2")
+			}
+		}
 		lastTelemetry = time.Now()
 		logEvent("INFO", "APP_START", "version", appVersion)
 		go logRuntimeSnapshot("APP_STATE_START")
@@ -1016,7 +1023,7 @@ func renderLog() {
 }
 
 func renderSettings() {
-	pageTitle("THIẾT LẬP", "Thiết lập nguồn dữ liệu và phiên Dashboard một lần; sau đó chỉ cần bấm Đồng bộ.")
+	pageTitle("THIẾT LẬP", "Nhận một phiên Dashboard; ứng dụng tự đồng bộ Đang lấy hàng và Sản lượng.")
 	w, _ := clientSize()
 	leftW := (w - 72) * 3 / 5
 	if leftW < 720 { leftW = 720 }
@@ -1024,25 +1031,23 @@ func renderSettings() {
 	rightW := w - rightX - 24
 	if rightW < 420 { rightW = 420 }
 
-	groupBox("NGUỒN DỮ LIỆU", 24, 124, leftW, 360)
-	static("Nguồn", 46, 156, 70, 22, true)
-	settingsSourceCombo = combo(ID_SOURCE_KIND, []string{"Sản lượng", "Đang lấy hàng"}, "Sản lượng", 122, 148, 180, 180)
-	static("Chọn đúng nguồn rồi dán cURL (bash) lấy từ Dashboard. App tự lưu cấu hình cục bộ và mã hóa theo Windows user.", 46, 188, leftW-44, 42, false)
+	groupBox("CẤU HÌNH DASHBOARD", 24, 124, leftW, 360)
+	static("Dán cURL (bash)", 46, 158, 170, 22, true)
+	static("Chỉ cần dán một cURL hợp lệ của Dashboard. Ứng dụng dùng chung phiên để tải Đang lấy hàng và Sản lượng.", 46, 188, leftW-44, 42, false)
 	settingsCurl = create("EDIT", "", WS_CHILD|WS_VISIBLE|WS_BORDER|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL, 46, 238, leftW-44, 132, mainWnd, 0)
 	setFont(settingsCurl, fontNormal)
 	addPage(settingsCurl)
-	button(ID_CURL_IMPORT, "LƯU NGUỒN", 46, 386, 142, 34)
-	button(ID_NET_TEST, "KIỂM TRA NGUỒN", 202, 386, 164, 34)
-	button(ID_SOURCE_CLEAR, "XOÁ NGUỒN ĐANG CHỌN", 380, 386, 210, 34)
+	button(ID_CURL_IMPORT, "LƯU CẤU HÌNH", 46, 386, 154, 34)
+	button(ID_NET_TEST, "KIỂM TRA ĐỒNG BỘ", 216, 386, 176, 34)
 
 	groupBox("TRẠNG THÁI KẾT NỐI", rightX, 124, rightW, 360)
 	settingsSummary = static(credentialSummary(), rightX+24, 160, rightW-48, 210, false)
 	button(ID_SECRET_TOGGLE, "HIỆN / ẨN PHIÊN", rightX+24, 386, 156, 34)
-	static("Thông tin nhạy cảm và cấu hình nguồn chỉ lưu cục bộ bằng Windows DPAPI; không nằm trong bản phát hành public.", rightX+24, 434, rightW-48, 42, false)
+	static("Phiên và cấu hình chỉ lưu cục bộ theo Windows user; dữ liệu nhạy cảm không nằm trong bản phát hành public.", rightX+24, 434, rightW-48, 42, false)
 
-	groupBox("CÁCH DÙNG", 24, 504, w-48, 116)
-	static("1. Cấu hình Sản lượng.   2. Cấu hình Đang lấy hàng.   3. Kiểm tra từng nguồn.   4. Từ lần sau chỉ cần bấm ĐỒNG BỘ.", 46, 540, w-92, 24, true)
-	static("Nếu một nguồn tạm lỗi, ứng dụng vẫn giữ dữ liệu hợp lệ trước đó và tiếp tục xử lý nguồn còn hoạt động.", 46, 574, w-92, 24, false)
+	groupBox("LUỒNG XỬ LÝ", 24, 504, w-48, 116)
+	static("Đang lấy hàng → dữ liệu live.   Sản lượng → Mapping → Phân ca → Pick / Pack.   User / PDA được hợp nhất từ dữ liệu nhân sự có trong hai luồng.", 46, 540, w-92, 42, true)
+	static("Sau khi lưu cấu hình một lần, vận hành hàng ngày chỉ cần bấm ĐỒNG BỘ.", 46, 584, w-92, 24, false)
 }
 
 func filterActive(t core.Table, status string) core.Table {
@@ -1098,21 +1103,6 @@ func handleCommand(id, code int, source uintptr) {
 		go checkUpdateInteractive()
 	case ID_CURL_IMPORT:
 		importCurl()
-	case ID_SOURCE_CLEAR:
-		if busy.Load() {
-			setStatus("Đang đồng bộ; chờ hoàn tất trước khi xoá nguồn dữ liệu.")
-			return
-		}
-		name := sourceBindingName(comboText(settingsSourceCombo))
-		if name != "" {
-			if err := removeSource(name); err != nil {
-				setStatus("Không xoá được nguồn: " + err.Error())
-			} else {
-				setStatus("Đã xoá cấu hình nguồn " + sourceLabel(name) + ".")
-				setText(settingsSummary, credentialSummary())
-				logEvent("INFO", "SOURCE_REMOVED", "source", name)
-			}
-		}
 	case ID_SECRET_TOGGLE:
 		revealSecrets = !revealSecrets
 		setText(settingsSummary, credentialSummary())
@@ -1361,22 +1351,30 @@ func startSync() {
 		setStatus("Đang đồng bộ; không tạo thêm tác vụ chồng nhau.")
 		return
 	}
-	setStatus("Đang đồng bộ dữ liệu…")
+	setStatus("Đang đồng bộ Dashboard…")
 	logEvent("INFO", "SYNC_START")
 	go func() {
 		defer busy.Store(false)
 		defer pPostMessage.Call(mainWnd, WM_APP_REFRESH, 0, 0)
+
 		if !sessionReady() {
-			setStatus("Chưa có phiên Dashboard. Vào Thiết lập để nhận cấu hình nguồn.")
+			setStatus("Chưa có phiên Dashboard. Vào Thiết lập và dán cURL một lần.")
 			logEvent("WARN", "SYNC_NO_CREDENTIAL")
 			return
 		}
-
-		payBinding, payOK := profileBinding("payroll-productivity")
 		activeBinding, activeOK := profileBinding("active-picking")
-		if !payOK && !activeOK {
-			setStatus("Chưa thiết lập nguồn dữ liệu. Vào Thiết lập → chọn nguồn → dán cURL.")
-			logEvent("WARN", "SYNC_SOURCES_MISSING")
+		payBinding, payOK := profileBinding("payroll-productivity")
+		if !activeOK || !payOK {
+			if err := ensureDashboardBindings(); err != nil {
+				setStatus("Chưa thiết lập Dashboard: " + err.Error())
+				logEvent("WARN", "SYNC_DASHBOARD_CONFIG_MISSING", "error", err.Error())
+				return
+			}
+			activeBinding, activeOK = profileBinding("active-picking")
+			payBinding, payOK = profileBinding("payroll-productivity")
+		}
+		if !activeOK || !payOK {
+			setStatus("Cấu hình Dashboard chưa đầy đủ.")
 			return
 		}
 
@@ -1384,79 +1382,97 @@ func startSync() {
 		defer cancel()
 		ch := make(chan liveSyncResult, 2)
 		session := currentLiveSession()
-		pending := 0
-		missing := []string{}
-		if payOK {
-			pending++
-			go syncOne(ctx, "payroll-productivity", payBinding, session, ch)
-		} else { missing = append(missing, "Sản lượng") }
-		if activeOK {
-			pending++
-			go syncOne(ctx, "active-picking", activeBinding, session, ch)
-		} else { missing = append(missing, "Đang lấy hàng") }
+		go syncOne(ctx, "active-picking", activeBinding, session, ch)
+		go syncOne(ctx, "payroll-productivity", payBinding, session, ch)
 
-		success := 0
-		var errors []string
 		var payroll []core.PayrollRow
 		var active core.Table
+		var problems []string
+		success := 0
 		route := ""
-		for i := 0; i < pending; i++ {
+		for i := 0; i < 2; i++ {
 			r := <-ch
 			if r.err != nil {
-				errors = append(errors, sourceLabel(r.name)+": "+r.err.Error())
+				problems = append(problems, sourceLabel(r.name)+": "+r.err.Error())
 				logEvent("ERROR", "SYNC_SOURCE_FAILED",
 					"source", r.name,
 					"http_status", strconv.Itoa(r.meta.StatusCode),
+					"bytes", strconv.Itoa(r.meta.Bytes),
 					"elapsed_ms", strconv.FormatInt(r.meta.Elapsed.Milliseconds(), 10),
 					"error", r.err.Error())
 				continue
 			}
 			success++
 			if route == "" { route = r.route }
+			if r.name == "payroll-productivity" { payroll = r.payroll }
+			if r.name == "active-picking" { active = r.table }
+			rows := len(r.payroll)
+			if r.name == "active-picking" { rows = len(r.table.Rows) }
 			logEvent("INFO", "SYNC_SOURCE_OK",
 				"source", r.name,
 				"http_status", strconv.Itoa(r.meta.StatusCode),
 				"bytes", strconv.Itoa(r.meta.Bytes),
+				"rows", strconv.Itoa(rows),
 				"elapsed_ms", strconv.FormatInt(r.meta.Elapsed.Milliseconds(), 10),
 				"route", r.route)
-			if r.name == "payroll-productivity" { payroll = r.payroll }
-			if r.name == "active-picking" { active = r.table }
 		}
+
 		if success == 0 {
 			liveMu.Lock()
-			live.LastError = strings.Join(errors, " | ")
+			live.LastError = strings.Join(problems, " | ")
 			liveMu.Unlock()
 			setStatus("Đồng bộ lỗi; dữ liệu hợp lệ trước đó vẫn được giữ nguyên.")
 			return
 		}
 
+		// Preserve the Excel behavior: production is processed through Mapping /
+		// Phân ca, while current-picking profile fields enrich missing employee data.
+		liveMu.RLock()
+		effectivePayroll := append([]core.PayrollRow(nil), live.Payroll...)
+		effectiveActive := live.Active
+		liveMu.RUnlock()
+		if len(active.Headers) > 0 { effectiveActive = active }
+		if len(payroll) > 0 {
+			effectivePayroll = liveio.EnrichPayrollFromActive(payroll, effectiveActive)
+		}
+
+		var pick, pack, shift core.Table
+		if len(payroll) > 0 {
+			pick, pack, shift = core.BuildTables(effectivePayroll, settings.Business, time.Now())
+		}
+		people := liveio.BuildPeopleTableCombined(effectivePayroll, effectiveActive)
+
 		liveMu.Lock()
 		if len(payroll) > 0 {
-			p, pa, sh := core.BuildTables(payroll, settings.Business, time.Now())
-			live.Payroll = payroll
-			live.Pick, live.Pack, live.Shift = p, pa, sh
-			live.UserPDA = liveio.BuildPeopleTable(payroll)
+			live.Payroll = effectivePayroll
+			live.Pick, live.Pack, live.Shift = pick, pack, shift
 		}
 		if len(active.Headers) > 0 { live.Active = active }
+		if len(people.Headers) > 0 { live.UserPDA = people }
 		live.LastSync = time.Now()
-		allIssues := append([]string{}, errors...)
-		if len(missing) > 0 { allIssues = append(allIssues, "Chưa cấu hình: "+strings.Join(missing, ", ")) }
-		live.LastError = strings.Join(allIssues, " | ")
+		live.LastError = strings.Join(problems, " | ")
 		live.Route = route
-		pickN, packN, activeN := len(live.Pick.Rows), len(live.Pack.Rows), len(live.Active.Rows)
+		pickN := len(live.Pick.Rows)
+		packN := len(live.Pack.Rows)
+		shiftN := len(live.Shift.Rows)
+		activeN := len(live.Active.Rows)
+		peopleN := len(live.UserPDA.Rows)
+		payrollN := len(live.Payroll)
 		liveMu.Unlock()
 
-		if len(allIssues) > 0 {
-			setStatus(fmt.Sprintf("Đồng bộ một phần · Pick %d · Pack %d · Đang lấy %d · %s", pickN, packN, activeN, strings.Join(allIssues, " | ")))
+		if len(problems) > 0 {
+			setStatus(fmt.Sprintf("Đồng bộ một phần · User/PDA %d · Pick %d · Pack %d · Phân ca %d · Đang lấy %d", peopleN, pickN, packN, shiftN, activeN))
 		} else {
-			setStatus(fmt.Sprintf("Đồng bộ xong · Pick %d · Pack %d · Đang lấy %d", pickN, packN, activeN))
+			setStatus(fmt.Sprintf("Đồng bộ xong · User/PDA %d · Pick %d · Pack %d · Phân ca %d · Đang lấy %d", peopleN, pickN, packN, shiftN, activeN))
 		}
 		logEvent("INFO", "SYNC_DONE",
 			"success_sources", strconv.Itoa(success),
-			"failed_sources", strconv.Itoa(len(errors)),
-			"missing_sources", strconv.Itoa(len(missing)),
+			"failed_sources", strconv.Itoa(len(problems)),
+			"payroll_rows", strconv.Itoa(payrollN),
+			"user_pda_rows", strconv.Itoa(peopleN),
 			"pick_rows", strconv.Itoa(pickN),
 			"pack_rows", strconv.Itoa(packN),
+			"shift_rows", strconv.Itoa(shiftN),
 			"active_rows", strconv.Itoa(activeN))
 	}()
 }
@@ -1546,27 +1562,21 @@ func parseCurl(raw string) (credentials, error) {
 }
 func importCurl() {
 	if busy.Load() {
-		setStatus("Đang đồng bộ; chờ hoàn tất trước khi thay đổi nguồn dữ liệu.")
+		setStatus("Đang đồng bộ; chờ hoàn tất trước khi thay đổi cấu hình.")
 		return
 	}
 	raw := getText(settingsCurl)
-	selected := comboText(settingsSourceCombo)
-	bindingName := sourceBindingName(selected)
-	if bindingName == "" {
-		setStatus("Chọn nguồn dữ liệu trước khi nhận cấu hình.")
-		return
-	}
 	c, err := parseCurl(raw)
 	setText(settingsCurl, "")
 	if err != nil {
 		setStatus("Không nhận được cURL: " + err.Error())
-		logEvent("WARN", "CURL_IMPORT_FAILED", "source", bindingName, "error", err.Error())
+		logEvent("WARN", "CURL_IMPORT_FAILED", "error", err.Error())
 		return
 	}
-	b, err := bindingFromCurl(c, selected)
+	bindings, err := dashboardBindingsFromCurl(c)
 	if err != nil {
-		setStatus("Không tạo được cấu hình nguồn: " + err.Error())
-		logEvent("WARN", "SOURCE_IMPORT_FAILED", "source", bindingName, "error", err.Error())
+		setStatus("Không tạo được cấu hình Dashboard: " + err.Error())
+		logEvent("WARN", "DASHBOARD_CONFIG_FAILED", "error", err.Error())
 		return
 	}
 
@@ -1576,22 +1586,21 @@ func importCurl() {
 		logEvent("ERROR", "CREDENTIAL_SAVE_FAILED", "error", err.Error())
 		return
 	}
-
-	if profile.SchemaVersion == 0 { profile.SchemaVersion = 1 }
-	if profile.ProfileID == "" { profile.ProfileID = "local-ui" }
-	if profile.Bindings == nil { profile.Bindings = map[string]runtimeBinding{} }
-	profile.Bindings[bindingName] = b
+	profile = runtimeProfile{
+		SchemaVersion: 1,
+		ProfileID: "dashboard-single-source",
+		Bindings: bindings,
+	}
 	if err = saveRuntimeProfile(); err != nil {
-		setStatus("Không lưu được nguồn "+sourceLabel(bindingName)+": "+err.Error())
-		logEvent("ERROR", "SOURCE_SAVE_FAILED", "source", bindingName, "error", err.Error())
+		setStatus("Không lưu được cấu hình Dashboard: " + err.Error())
+		logEvent("ERROR", "DASHBOARD_CONFIG_SAVE_FAILED", "error", err.Error())
 		return
 	}
 
 	setText(settingsSummary, credentialSummary())
-	setStatus("Đã lưu nguồn "+sourceLabel(bindingName)+" và phiên Dashboard.")
-	logEvent("INFO", "SOURCE_CONFIGURED",
-		"source", bindingName,
-		"method", b.Method,
+	setStatus("Đã lưu cấu hình Dashboard. Có thể Đồng bộ ngay.")
+	logEvent("INFO", "DASHBOARD_CONFIGURED",
+		"binding_count", strconv.Itoa(len(bindings)),
 		"authorization_present", strconv.FormatBool(creds.Authorization != ""),
 		"signature_present", strconv.FormatBool(creds.Signature != ""))
 }
@@ -1665,33 +1674,53 @@ func requestProbe(c credentials) error {
 	return nil
 }
 func networkTest() {
-	selected := comboText(settingsSourceCombo)
-	name := sourceBindingName(selected)
-	if name == "" {
-		setStatus("Chọn nguồn dữ liệu cần kiểm tra.")
-		return
-	}
-	b, ok := profileBinding(name)
-	if !ok {
-		setStatus("Nguồn "+sourceLabel(name)+" chưa được thiết lập.")
-		return
-	}
 	if !sessionReady() {
 		setStatus("Chưa có phiên Dashboard.")
 		return
 	}
-	setStatus("Đang kiểm tra nguồn "+sourceLabel(name)+"…")
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	start := time.Now()
-	_, meta, route, err := executeWithFallback(ctx, liveio.ExpandBinding(b, time.Now()), currentLiveSession())
-	if err != nil {
-		setStatus("Kiểm tra "+sourceLabel(name)+" lỗi: "+err.Error())
-		logEvent("WARN", "SOURCE_TEST_FAILED", "source", name, "elapsed_ms", strconv.FormatInt(time.Since(start).Milliseconds(), 10), "error", err.Error())
+	activeBinding, aOK := profileBinding("active-picking")
+	payBinding, pOK := profileBinding("payroll-productivity")
+	if !aOK || !pOK {
+		if err := ensureDashboardBindings(); err != nil {
+			setStatus("Chưa có cấu hình Dashboard: " + err.Error())
+			return
+		}
+		activeBinding, aOK = profileBinding("active-picking")
+		payBinding, pOK = profileBinding("payroll-productivity")
+	}
+	if !aOK || !pOK {
+		setStatus("Cấu hình Dashboard chưa đầy đủ.")
 		return
 	}
-	setStatus("Nguồn "+sourceLabel(name)+" hoạt động · "+route)
-	logEvent("INFO", "SOURCE_TEST_OK", "source", name, "http_status", strconv.Itoa(meta.StatusCode), "elapsed_ms", strconv.FormatInt(meta.Elapsed.Milliseconds(), 10), "route", route)
+
+	setStatus("Đang kiểm tra Đang lấy hàng và Sản lượng…")
+	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+	defer cancel()
+	ch := make(chan liveSyncResult, 2)
+	session := currentLiveSession()
+	go syncOne(ctx, "active-picking", activeBinding, session, ch)
+	go syncOne(ctx, "payroll-productivity", payBinding, session, ch)
+
+	okCount := 0
+	var problems []string
+	for i := 0; i < 2; i++ {
+		r := <-ch
+		if r.err != nil {
+			problems = append(problems, sourceLabel(r.name)+": "+r.err.Error())
+			logEvent("WARN", "DASHBOARD_TEST_FAILED", "source", r.name, "http_status", strconv.Itoa(r.meta.StatusCode), "error", r.err.Error())
+			continue
+		}
+		okCount++
+		rows := 0
+		if r.name == "active-picking" { rows = len(r.table.Rows) }
+		if r.name == "payroll-productivity" { rows = len(r.payroll) }
+		logEvent("INFO", "DASHBOARD_TEST_OK", "source", r.name, "rows", strconv.Itoa(rows), "http_status", strconv.Itoa(r.meta.StatusCode), "route", r.route)
+	}
+	if okCount == 2 {
+		setStatus("Kiểm tra Dashboard OK: Đang lấy hàng + Sản lượng.")
+		return
+	}
+	setStatus("Kiểm tra Dashboard chưa đạt: " + strings.Join(problems, " | "))
 }
 
 func isSensitiveHeader(k string) bool {
@@ -1832,11 +1861,12 @@ func sourceConfigured(name string) bool {
 }
 
 func sourceSummary() string {
-	pay := "Chưa thiết lập"
-	if sourceConfigured("payroll-productivity") { pay = "Đã thiết lập" }
-	active := "Chưa thiết lập"
-	if sourceConfigured("active-picking") { active = "Đã thiết lập" }
-	return "Nguồn Sản lượng: " + pay + "\r\nNguồn Đang lấy hàng: " + active
+	activeOK := sourceConfigured("active-picking")
+	payOK := sourceConfigured("payroll-productivity")
+	if activeOK && payOK {
+		return "Dashboard: Đã thiết lập đầy đủ"
+	}
+	return "Dashboard: Chưa thiết lập đầy đủ"
 }
 
 func mergeCredentials(old, next credentials) credentials {
@@ -1883,6 +1913,90 @@ func templatizeRequestDates(raw string, now time.Time) string {
 	out := raw
 	for _, r := range repl { out = strings.ReplaceAll(out, r.old, r.next) }
 	return out
+}
+
+func dashboardOrigin(rawURL string) (string, error) {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return "", fmt.Errorf("URL Dashboard không hợp lệ")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", fmt.Errorf("Dashboard phải dùng HTTP/HTTPS")
+	}
+	return u.Scheme + "://" + u.Host, nil
+}
+
+func nonSensitiveCurlHeaders(c credentials) map[string]string {
+	h := map[string]string{}
+	for k, v := range c.OtherHeaders {
+		if strings.TrimSpace(k) == "" || localHeaderSensitive(k) { continue }
+		lk := strings.ToLower(strings.TrimSpace(k))
+		if lk == "host" || lk == "content-length" || lk == "referer" || lk == "origin" { continue }
+		h[k] = v
+	}
+	return h
+}
+
+func cloneHeaders(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in)+6)
+	for k, v := range in { out[k] = v }
+	return out
+}
+
+func dashboardBindingsFromCurl(c credentials) (map[string]runtimeBinding, error) {
+	origin, err := dashboardOrigin(c.URL)
+	if err != nil { return nil, err }
+	base := nonSensitiveCurlHeaders(c)
+
+	activeHeaders := cloneHeaders(base)
+	activeHeaders["Accept"] = "application/json, text/plain, */*"
+	activeHeaders["Content-Type"] = "application/json"
+	activeHeaders["Origin"] = origin
+	activeHeaders["Referer"] = origin + "/app/dashboard/picking"
+	activeHeaders["withcredentials"] = "true"
+	activeHeaders["Cache-Control"] = "no-cache"
+	activeHeaders["Pragma"] = "no-cache"
+
+	payHeaders := cloneHeaders(base)
+	payHeaders["Accept"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*"
+	payHeaders["Origin"] = origin
+	payHeaders["Referer"] = origin + "/app/payroll/list"
+	payHeaders["withcredentials"] = "true"
+	payHeaders["Cache-Control"] = "no-cache"
+	payHeaders["Pragma"] = "no-cache"
+
+	// Stable V1.3 uses one Dashboard session and two internal requests:
+	// current picking JSON plus previous-day..today payroll export XLSX.
+	active := runtimeBinding{
+		Method: "POST",
+		URL: origin + "/api/v1/performance/picking",
+		Body: `{"data":{"WarehouseCode":"HY1","ClientCode":""}}`,
+		Headers: activeHeaders,
+		ResponseKind: "json",
+	}
+	payroll := runtimeBinding{
+		Method: "GET",
+		URL: origin + "/api/v1/payroll/export?keywords=&WarehouseCode=HY1&Employee=&JobType=&ToDate={{TODAY_ISO}}&FromDate={{YESTERDAY_ISO}}",
+		Headers: payHeaders,
+		ResponseKind: "xlsx",
+	}
+	return map[string]runtimeBinding{
+		"active-picking": active,
+		"payroll-productivity": payroll,
+	}, nil
+}
+
+func ensureDashboardBindings() error {
+	if strings.TrimSpace(creds.URL) == "" { return fmt.Errorf("chưa có cURL Dashboard") }
+	bindings, err := dashboardBindingsFromCurl(creds)
+	if err != nil { return err }
+	profile = runtimeProfile{
+		SchemaVersion: 1,
+		ProfileID: "dashboard-single-source",
+		Bindings: bindings,
+	}
+	if err := saveRuntimeProfile(); err != nil { return err }
+	return nil
 }
 
 func bindingFromCurl(c credentials, source string) (runtimeBinding, error) {

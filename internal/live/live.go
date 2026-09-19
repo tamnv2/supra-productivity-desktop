@@ -394,6 +394,98 @@ func BuildPeopleTable(payroll []core.PayrollRow) core.Table {
 	return t
 }
 
+
+type activePerson struct {
+	Name, MNV, Provider, Site, Shift, Tenure, PDA, Client string
+}
+
+func activePeopleByUser(active core.Table) map[string]activePerson {
+	out := map[string]activePerson{}
+	for _, row := range active.Rows {
+		if len(row) <= 6 { continue }
+		user := strings.TrimSpace(stringify(row[6]))
+		if user == "" { continue }
+		get := func(idx int) string {
+			if idx < 0 || idx >= len(row) { return "" }
+			return strings.TrimSpace(stringify(row[idx]))
+		}
+		p := out[user]
+		if p.Name == "" { p.Name = get(7) }
+		if p.MNV == "" { p.MNV = get(8) }
+		if p.Provider == "" { p.Provider = get(9) }
+		if p.Site == "" { p.Site = get(10) }
+		if p.Shift == "" { p.Shift = get(11) }
+		if p.Tenure == "" { p.Tenure = get(12) }
+		if p.PDA == "" { p.PDA = get(22) }
+		if p.Client == "" { p.Client = get(23) }
+		out[user] = p
+	}
+	return out
+}
+
+// EnrichPayrollFromActive mirrors Excel's Mapping/Phân-ca enrichment step:
+// production rows remain authoritative for quantities/times while current
+// picking data fills missing employee/profile/site/shift attributes.
+func EnrichPayrollFromActive(payroll []core.PayrollRow, active core.Table) []core.PayrollRow {
+	people := activePeopleByUser(active)
+	out := make([]core.PayrollRow, len(payroll))
+	copy(out, payroll)
+	for i := range out {
+		p, ok := people[strings.TrimSpace(out[i].User)]
+		if !ok { continue }
+		if strings.TrimSpace(out[i].Name) == "" { out[i].Name = p.Name }
+		if strings.TrimSpace(out[i].MNV) == "" { out[i].MNV = p.MNV }
+		if strings.TrimSpace(out[i].Provider) == "" { out[i].Provider = p.Provider }
+		if strings.TrimSpace(out[i].Site) == "" { out[i].Site = p.Site }
+		if strings.TrimSpace(out[i].Shift) == "" { out[i].Shift = p.Shift }
+		if strings.TrimSpace(out[i].Tenure) == "" { out[i].Tenure = p.Tenure }
+	}
+	return out
+}
+
+// BuildPeopleTableCombined is the native-app equivalent of the Excel
+// Dữ liệu User PDA + Mapping join. It combines production users with active
+// picking users and includes the PDA/client fields available from live data.
+func BuildPeopleTableCombined(payroll []core.PayrollRow, active core.Table) core.Table {
+	type person struct {
+		Name, MNV, User, Provider, Site, Tenure, PDA, Client string
+	}
+	byUser := map[string]person{}
+	for _, r := range payroll {
+		u := strings.TrimSpace(r.User)
+		if u == "" { continue }
+		p := byUser[u]
+		p.User = u
+		if p.Name == "" { p.Name = r.Name }
+		if p.MNV == "" { p.MNV = r.MNV }
+		if p.Provider == "" { p.Provider = r.Provider }
+		if p.Site == "" { p.Site = r.Site }
+		if p.Tenure == "" { p.Tenure = r.Tenure }
+		byUser[u] = p
+	}
+	for u, a := range activePeopleByUser(active) {
+		p := byUser[u]
+		p.User = u
+		if p.Name == "" { p.Name = a.Name }
+		if p.MNV == "" { p.MNV = a.MNV }
+		if p.Provider == "" { p.Provider = a.Provider }
+		if p.Site == "" { p.Site = a.Site }
+		if p.Tenure == "" { p.Tenure = a.Tenure }
+		if p.PDA == "" { p.PDA = a.PDA }
+		if p.Client == "" { p.Client = a.Client }
+		byUser[u] = p
+	}
+	users := make([]string, 0, len(byUser))
+	for u := range byUser { users = append(users, u) }
+	sort.Slice(users, func(i, j int) bool { return strings.ToLower(users[i]) < strings.ToLower(users[j]) })
+	t := core.Table{Headers: []string{"Họ và tên","Mã nhân viên","User","Nhà cung cấp","Site","Tuổi nghề","PDA","Client"}}
+	for _, u := range users {
+		p := byUser[u]
+		t.Rows = append(t.Rows, []any{p.Name,p.MNV,p.User,p.Provider,p.Site,p.Tenure,p.PDA,p.Client})
+	}
+	return t
+}
+
 func mapHeaders(headers []string) map[string]int {
 	out:=map[string]int{}
 	for i,h:=range headers {

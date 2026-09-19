@@ -445,7 +445,7 @@ func buildPickTable(aggs map[aggKey]*userAgg, refs map[string]employeeInfo, b Bu
 			continue
 		}
 		ref := refs[a.User]
-		if !b.ShowAllSite && strings.TrimSpace(ref.Site) != "" && strings.TrimSpace(ref.Site) != "1921" {
+		if !b.ShowAllSite && strings.TrimSpace(ref.Site) != "" && strings.TrimSpace(ref.Site) != "1291" {
 			continue
 		}
 

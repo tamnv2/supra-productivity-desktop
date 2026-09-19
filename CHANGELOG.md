@@ -136,3 +136,16 @@ Status: private test build; owner acceptance pending.
 - Removed operator-facing “runtime profile/binding” wording from the normal sync flow.
 - Prevented source changes while a synchronization task is running.
 
+## 2026-09-19 — test.7 single Dashboard Excel pipeline
+
+- Replaced test.6's two-source configuration with one Dashboard cURL/session.
+- Derive current-picking JSON and payroll/productivity XLSX requests internally from the captured Dashboard origin.
+- Auto-migrate saved test.6 credentials/bindings on startup.
+- Validate both request + parser paths in **KIỂM TRA ĐỒNG BỘ**, rather than only checking HTTP 200.
+- Restored Excel-style production processing: payroll rows → employee enrichment → Phân ca → Pick/Pack.
+- User/PDA now merges production users with current-picking employee/device fields.
+- Preserve valid snapshots when either request fails.
+- Added detailed sanitized sync counts for payroll, User/PDA, Pick, Pack, Phân ca and Đang lấy hàng.
+- Fixed the reconstructed site filter from 1921 to **1291**.
+- Added regression tests for Site1291 filtering and active/payroll employee enrichment.
+
