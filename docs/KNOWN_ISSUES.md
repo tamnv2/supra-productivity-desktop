@@ -63,3 +63,12 @@ Updated: 2026-09-19
 - Corrective candidate adds page/command/table timing, panic capture, periodic runtime telemetry, non-reentrant page rendering, deferred control refresh and batched ListView redraw suppression.
 - **Status:** code changed; target-laptop verification required.
 
+
+### v1.3.2-test.3 Win32 work-area / message-loop hang
+- Owner reproduced **Not Responding** with zero business rows loaded; memory was low (~1.7 MB heap) and only four goroutines were active, so this is not a capacity/RAM failure.
+- The test.3 shell forced `SW_MAXIMIZE` from inside `WM_SYSCOMMAND` while also suppressing restore/size/move. This is replaced by monitor `rcWork` pinning with no recursive maximize call.
+- The test.3 log export Save As dialog blocked the main UI command for 2531 ms. The common dialog is moved to its own locked OS thread; log file aggregation remains background work.
+- Parent window had no background brush, producing broken grey/white strip rendering. The shell now uses the standard Windows window background.
+- Added UI watchdog logging: a main-thread stall >=6 seconds records all Go goroutine stacks as `UI_WATCHDOG_STALL`.
+- **Status:** fixed in test.4 candidate; target-laptop verification required.
+
