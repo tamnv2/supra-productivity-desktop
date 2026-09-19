@@ -78,3 +78,17 @@ Status: private test build; owner acceptance pending.
 - PR #3 validation passed State Guard `35419657684` and Windows Portable `35419657703`.
 - Owner runtime update verification remains required before stable promotion.
 
+## 2026-09-19 — Bottom navigation / unified log / stability
+
+- Moved business navigation to a bottom Excel-like tab row.
+- Expanded operational tables to use the freed horizontal area.
+- Replaced the separate diagnostic export concept with one comprehensive sanitized Log.
+- Added user-selected Log export through a native Save As dialog.
+- Added periodic runtime/performance snapshots, UI render timing, command timing, table-fill timing and panic capture to the log.
+- Added buffered log flush/drop tracking so diagnostics cannot block the UI.
+- Prevented re-entrant page rendering and same-tab redundant renders.
+- Deferred control-triggered refresh via the Windows message queue instead of destroying controls inside their own event handler.
+- Disabled ListView redraw while bulk-filling table rows to reduce UI stalls.
+- Window now starts maximized, has no resize/restore-down flow, and still allows minimizing to the taskbar.
+- Added sanitized Excel parity proposal for Owner review.
+
