@@ -4,48 +4,37 @@ Updated: 2026-09-19
 
 ## Open / verification required
 
-### Public source is a sanitized reconstruction
-- The earlier private V1.3 test source is not treated as a public canonical source.
-- A sanitized Go/Win32 source tree has now been reconstructed and committed.
-- It intentionally excludes internal endpoint bindings, real company snapshots, credentials, and raw diagnostics.
-- **Status:** local core tests/cross-build passed; owner validation of the GitHub-built artifact is still required.
+### GitHub-built candidate requires target-laptop verification
+- Canonical sanitized source is present in the public repository.
+- Pull-request CI successfully completed state/security guards, tests, vet, Windows x64 build, binary scan, package and artifact upload.
+- Verified build run: `35412096189`; artifact id: `10574174267`.
+- **Status:** build verified; owner runtime acceptance pending.
 
-### Private live-data bindings
-- Public source now imports and DPAPI-protects a local runtime profile without publishing production endpoint templates.
-- Full live request execution/response parsing is not yet wired to the profile.
-- **Status:** provisioning complete; live binding open.
+### V1.3 / V1.3.1 PICK flicker/event storm
+- Earlier diagnostics identified repeated skip-20-minute UI events causing recalculation/render loops.
+- The interaction was changed to avoid the recursive checkbox mechanism.
+- **Status:** code changed; target-laptop verification required.
 
-### GitHub Actions verification
-- Windows build/release workflows are committed.
-- Connector-created commits/PR events did not expose a workflow run for verification in this session.
-- **Status:** trigger through a normal external push or manual Actions dispatch and verify artifact/logs.
+### Functional parity
+- Live payroll/productivity and active-picking execution is wired through the locally encrypted runtime profile.
+- Remaining parity items still require real environment verification, especially detailed CPU telemetry, all target/quota edit controls, and User/PDA behavior.
+- **Status:** ongoing owner verification.
 
-### GitHub updater
-- Public source now downloads the stable release EXE/checksum, verifies SHA256, backs up the current EXE, stages replacement after exit, and restarts.
-- Replacement failure attempts to restore the backup.
+### Updater hardening
+- GitHub stable-release lookup, download, SHA256 verification, backup, staged replacement, restart and replacement-failure restore are implemented.
+- GitHub being blocked is non-fatal.
 - Manual/offline package selection and startup-health rollback remain incomplete.
-- **Status:** partially implemented.
+- **Status:** usable foundation; hardening remains.
 
-### UI / functional parity
-- Full process/system CPU telemetry still needs parity work.
-- All PICK numeric target/quota fields are not yet exposed as editable controls in the reconstructed public UI.
-- User/PDA public build contains no bundled company snapshot by design; live/local binding is pending.
-- **Status:** open.
-
-### V1.3 PICK flicker/event storm
-- Earlier diagnostics showed a large repeated skip-20-minute checkbox event storm.
-- V1.3 changed the interaction to avoid the recursive render mechanism.
-- **Status:** implementation exists; target-laptop owner verification required.
+### Stable Release
+- Release workflow is committed and ready.
+- A stable release is intentionally not created until the owner tests the GitHub-built candidate.
+- **Status:** pending owner acceptance, not a technical source/build blocker.
 
 ## Resolved / superseded
 
-- V1.1 incomplete live-sync behavior → superseded.
-- V1.2 PICK recursive checkbox/render mechanism → superseded by the V1.3 interaction change, pending verification.
-- GitHub continuity/source-state bootstrap → complete.
-- Public source import blocker → resolved; source is now in the repository.
-
-
-### Canonical V1.3 source unavailable
-- The active V1.3 package contains the executable and supporting release/test files, but no source tree.
-- This blocks reproducible GitHub Actions build/release.
-- **Status:** open; source must be restored/recreated and validated before CI/release can be completed.
+- Public source import blocker → resolved.
+- Missing canonical source claim → resolved/corrected.
+- GitHub Actions reproducible build verification → resolved; PR CI passed.
+- Public-repo guard false positives for source variable references/XML namespace URLs → fixed and verified.
+- V1.1/V1.2 prototypes → superseded.
