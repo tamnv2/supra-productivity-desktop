@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-ALLOWED_URL_HOSTS = {"github.com", "api.github.com"}
+ALLOWED_URL_HOSTS = {"github.com", "api.github.com", "schemas.openxmlformats.org", "www.w3.org"}
 URL_RX = re.compile(rb"https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+")
 BEARER_RX = re.compile(rb"(?i)bearer[ \t]+[A-Za-z0-9._~+\-/=]{32,}")
 PRIVATE_KEY_RX = re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")
