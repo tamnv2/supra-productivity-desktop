@@ -47,3 +47,12 @@ Canonical record of explicit owner decisions. Newest explicit owner instruction 
 - Never publish sensitive information.
 - GitHub becomes the canonical persistence layer for project state, decisions, next action, build/release history, and sanitized debugging findings.
 - Any new AI session should continue from repository state instead of relying on AI memory.
+
+## 2026-09-19 — Runtime/UI correction after test.1 rejection
+
+- `v1.3.1-test.1` is rejected and must not be promoted stable.
+- UI must be professional and restrained: consistent neutral palette, clear work/status color semantics, no visually mixed ad-hoc styling.
+- Primary business navigation moves to a single bottom row so the operational content area gets maximum width/height.
+- The desktop window opens at the full Windows work area and is not user-resizable; normal user flow is full-size or minimized to the taskbar.
+- Runtime responsiveness has priority over diagnostics: filesystem/network logging must not block the UI thread.
+

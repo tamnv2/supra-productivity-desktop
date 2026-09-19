@@ -2,64 +2,39 @@
 
 Updated: 2026-09-19
 
-## Verified state
+## Current state
 
-GitHub is now the canonical source and build system.
+Owner **rejected `v1.3.1-test.1`** after real company-laptop testing:
+- Windows displayed `Not Responding`;
+- UI/layout was not accepted.
 
-Completed:
-- sanitized canonical source in `main`;
-- public-repo/state guards;
-- Go tests and vet;
-- Windows x64 GitHub build;
-- binary public scan;
-- Actions artifact packaging;
-- live runtime-profile binding;
-- GitHub update foundation;
-- automatic owner-test prerelease workflow;
-- automatic accepted-stable release workflow.
+The rejected build must not be promoted stable.
 
-### Published owner-test candidate
+## Fix committed for next candidate
 
-`v1.3.1-test.1`
+Target: **`v1.3.1-test.2`**
 
-GitHub Actions:
-- candidate publish run: `35412269300` — PASS
-- main portable build run: `35412269285` — PASS
-
-Release contains:
-- `SupraProductivity.exe`
-- `SHA256SUMS.txt`
-- `SupraProductivity_v1.3.1-test.1_windows_x64.zip`
+Changes:
+1. runtime log writes no longer execute filesystem work synchronously on the UI path;
+2. runtime logs are kept in local AppData, independent from a stale/slow configured data folder;
+3. diagnostic export runs in a worker goroutine;
+4. log viewer reads only a bounded tail;
+5. navigation moved from the left rail to one bottom row;
+6. operational content now uses almost the full window width;
+7. app opens at the full Windows work area and is not resizable; user can minimize it to the taskbar;
+8. shell styling uses one restrained neutral palette with a dark header and status-aware text.
 
 ## Immediate next action
 
-**Owner tests `v1.3.1-test.1` on the target company laptop.**
+1. Verify GitHub Actions build and owner-test publish for `v1.3.1-test.2`.
+2. If both PASS, owner downloads and tests `v1.3.1-test.2`.
+3. Retest:
+   - startup and repeated navigation: no `Not Responding`;
+   - full-size/minimize-only behavior;
+   - bottom navigation and content area;
+   - Pick/Pack/Phân ca controls;
+   - PDA sync;
+   - restricted Office sync;
+   - long-running CPU/RAM/log stability.
 
-Test:
-1. standard Windows user, no Admin;
-2. import session with Copy-as-cURL bash;
-3. sync on PDA;
-4. sync on restricted Office network;
-5. verify PICK has no flicker/blank event loop;
-6. verify manual shift, double-click detail, typed sorting and screen-specific controls;
-7. leave app running long enough to inspect CPU/RAM/log stability.
-
-### If accepted
-
-Create/update:
-
-`release/stable-version.txt`
-
-with the approved semantic version, for example:
-
-`v1.3.1`
-
-That single canonical change automatically runs `.github/workflows/publish-stable.yml`, rebuilds from source, validates security/tests, and publishes the stable GitHub Release. The in-app updater checks stable GitHub Releases and verifies SHA256 before replacement.
-
-### If not accepted
-
-Send the diagnostic privately. Record only sanitized findings in GitHub, fix the verified issue, increment `release/test-version.txt`, and GitHub automatically publishes the next prerelease candidate.
-
-## Security
-
-Never commit the runtime cURL/token/cookie/signature, raw company data, raw diagnostic ZIPs, or private endpoint bindings to this public repository.
+Do not publish stable until explicit owner acceptance.

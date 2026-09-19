@@ -51,3 +51,14 @@ All entries must be sanitized for a public repository.
 - Limited Settings primarily to Dashboard credential/cURL handling.
 
 Status: private test build; owner acceptance pending.
+
+## 2026-09-19 — v1.3.1-test.2 runtime/UI correction
+- Marked test.1 owner-rejected.
+- Removed UI-thread dependency on runtime log filesystem writes.
+- Runtime logs now use a bounded background queue and local AppData path.
+- Diagnostic export moved off the UI thread; log viewer reads a bounded tail.
+- Replaced left navigation rail with a bottom navigation row.
+- Expanded operational content to near full-window width.
+- Window now opens full work-area and is non-resizable/minimize-only in normal use.
+- Refined shell styling to a restrained neutral palette with status-aware header text.
+

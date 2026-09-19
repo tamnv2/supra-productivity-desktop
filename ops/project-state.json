@@ -5,9 +5,9 @@
   "repository": "tamnv2/supra-productivity-desktop",
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
-  "current_version": "v1.3.1-test.1",
-  "current_phase": "owner-runtime-verification",
-  "current_status": "github_prerelease_published_owner_test_pending",
+  "current_version": "v1.3.1-test.2",
+  "current_phase": "ui-runtime-regression-fix",
+  "current_status": "owner_rejected_test1_fix_committed_candidate_test2_requested",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -55,21 +55,24 @@
     "Automated owner-test prerelease publishing added via release/test-version.txt",
     "Automated accepted-stable publishing added via release/stable-version.txt",
     "Owner-test prerelease v1.3.1-test.1 built and published successfully by GitHub Actions",
-    "Main-branch Build Windows Portable also passed for the v1.3.1-test.1 request commit"
+    "Main-branch Build Windows Portable also passed for the v1.3.1-test.1 request commit",
+    "Owner rejected v1.3.1-test.1 due to Not Responding/runtime responsiveness and unacceptable UI layout.",
+    "Moved primary navigation from left rail to bottom row to maximize business content area.",
+    "Changed window shell to full work-area fixed size with minimize-only user flow.",
+    "Changed runtime logging to non-blocking local AppData logging so diagnostics I/O cannot block the UI thread.",
+    "Refreshed neutral professional shell styling with dark header, light workspace, Windows Explorer-themed controls and status-aware header text."
   ],
-  "current_task": "Owner-test GitHub prerelease v1.3.1-test.1 on the company laptop across PDA and restricted Office networks.",
-  "next_action": "Download and test v1.3.1-test.1 from GitHub Releases. If owner accepts, create/update release/stable-version.txt with the approved semantic version to automatically build and publish a stable release; otherwise analyze sanitized diagnostics and fix only verified regressions.",
+  "current_task": "Rebuild the GitHub candidate after owner rejected v1.3.1-test.1 for UI/runtime responsiveness.",
+  "next_action": "Verify GitHub Actions for v1.3.1-test.2. If PASS, owner retests full-size bottom-navigation UI, startup/navigation responsiveness, PDA sync and restricted Office sync.",
   "blockers": [
-    "Owner runtime acceptance of v1.3.1-test.1 is required before publishing a stable release.",
-    "Manual/offline updater picker and startup-health rollback remain hardening items, not blockers for testing.",
-    "Functional parity items still require target-environment verification."
+    "Owner runtime retest of v1.3.1-test.2 is required before any stable release.",
+    "Real target-laptop verification remains required for network and long-running CPU/RAM stability."
   ],
   "known_issues": [
-    "GitHub-built candidate requires owner test on PDA and restricted Office networks.",
-    "PICK flicker/event-storm fix requires target-laptop verification.",
-    "Full Excel parity remains under owner verification.",
-    "Manual/offline updater picker and startup-health rollback are not yet complete.",
-    "Stable release must not be marked accepted before owner test."
+    "v1.3.1-test.1 rejected by owner: Windows reported Not Responding and UI/layout was not acceptable.",
+    "Runtime logging previously performed synchronous filesystem work from UI paths; changed to non-blocking local logging in test.2 and requires target-laptop verification.",
+    "Full functional parity remains under owner verification.",
+    "Manual/offline updater picker and startup-health rollback remain hardening items."
   ],
   "test_status": {
     "v1.1": "superseded",
@@ -82,9 +85,10 @@
     "public_repo_guard": "passed",
     "windows_x64_cross_build": "passed",
     "binary_public_scan": "passed",
-    "v1.3.1-test.1": "github_prerelease_published_owner_test_pending",
+    "v1.3.1-test.1": "owner_rejected_not_accepted",
     "candidate_publish_workflow": "passed_run_35412269300",
-    "main_build_after_candidate_request": "passed_run_35412269285"
+    "main_build_after_candidate_request": "passed_run_35412269285",
+    "v1.3.1-test.2": "candidate_requested_ci_pending"
   },
   "security": {
     "public_repo": true,
@@ -125,8 +129,8 @@
     "stable_release": "pending_owner_acceptance",
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
-    "candidate_release": "v1.3.1-test.1",
-    "candidate_release_status": "published_prerelease",
+    "candidate_release": "v1.3.1-test.2",
+    "candidate_release_status": "requested_ci_pending",
     "candidate_publish_run_id": 35412269300,
     "main_build_run_id": 35412269285
   },

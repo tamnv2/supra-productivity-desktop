@@ -38,3 +38,12 @@ Updated: 2026-09-19
 - GitHub Actions reproducible build verification → resolved; PR CI passed.
 - Public-repo guard false positives for source variable references/XML namespace URLs → fixed and verified.
 - V1.1/V1.2 prototypes → superseded.
+
+### v1.3.1-test.1 owner rejection — responsiveness and shell layout
+- Owner runtime test showed Windows `Not Responding`.
+- Owner rejected the visual shell/layout as insufficiently professional.
+- Verified source risk: log writes and directory preparation were synchronous on UI-driven paths and could inherit a slow/stale configured data path.
+- Fix in test.2: runtime log path is local AppData, log writes use a bounded non-blocking background queue, log viewing reads a bounded tail, and diagnostic export runs off the UI thread.
+- UI correction in test.2: fixed full-work-area window, no resize flow, bottom navigation, neutral professional palette/status-aware header, larger operational content area.
+- **Status:** code fixed; target-laptop verification pending.
+
