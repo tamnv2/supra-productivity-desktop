@@ -2,33 +2,27 @@
 
 Updated: 2026-09-19
 
-## Current baseline
+## Current canonical candidate
 
-The owner supplied `SUPRA_PRODUCTIVITY_V1.3_TEST_FULL_SOURCE.zip`, reconstructed from the stable V1.3 executable. That recovered behavior is now the authority for this rebuild.
+Recovered stable V1.3 behavior is now the rebuild baseline.
 
-The previous GitHub candidates `v1.3.1-test.1` and `v1.3.1-test.2` are not the baseline for business behavior.
+Published GitHub prereleases:
+- `v1.3.2-test.1` — updater source build.
+- `v1.3.2-test.2` — identical-source updater target build.
 
-## Rebuild included
+PR verification before merge:
+- Project State Guard: run `35419657684` — PASS.
+- Windows Portable build: run `35419657703` — PASS.
+- This includes public-repo guard, unit tests, vet, Windows x64 cross-build and binary scan.
 
-- recovered V1.3 business defaults and formulas;
-- V1.3 shift classification and manual-shift priority;
-- per-DO SKU deduction using `ceil(SKU/10)`;
-- payroll duration kept in minutes and productivity speed calculated from minutes;
-- recovered active-picking 31-column shape;
-- stable-style left-navigation desktop shell;
-- asynchronous/non-blocking diagnostics retained;
-- private endpoint bindings remain local via encrypted runtime profile;
-- GitHub updater supports both stable and test/prerelease channels;
-- updater still verifies SHA256, creates a backup, replaces after exit and restores the backup if replacement itself fails.
+## Owner test now
 
-## Immediate next action
-
-1. Run GitHub PR CI for candidate source `v1.3.2-test.1`.
-2. Require PASS for project/public guards, Go tests, vet, Windows x64 build and binary scan.
-3. Merge only after CI passes.
-4. Publish `v1.3.2-test.1`.
-5. Publish identical-source `v1.3.2-test.2` as the updater target.
-6. Owner runs test.1 on the target company laptop and clicks **CẬP NHẬT**. It must detect test.2, verify SHA256, replace/restart successfully and show the new version.
-7. Only after that updater/runtime pass should further feature/UI changes resume.
+1. Download/run **v1.3.2-test.1** on the target laptop.
+2. Verify the V1.3 baseline opens and core Pick/Pack/Phân ca behavior is usable.
+3. Click **CẬP NHẬT**.
+4. It must detect **v1.3.2-test.2**.
+5. It must download `SupraProductivity.exe` + `SHA256SUMS.txt`, verify SHA256, back up the current EXE, replace after exit and restart.
+6. After restart, the window/version must show **v1.3.2-test.2**.
+7. If this passes, only then resume the owner's next UI/feature changes.
 
 Stable release remains blocked until explicit owner acceptance.
