@@ -149,3 +149,17 @@ Status: private test build; owner acceptance pending.
 - Fixed the reconstructed site filter from 1921 to **1291**.
 - Added regression tests for Site1291 filtering and active/payroll employee enrichment.
 
+
+## 2026-09-19 — test.8 native Recap and smart date cache candidate
+
+- Added native **BÁO CÁO** bottom tab with four workbook-parity views: Recap, % chẵn lẻ, NSLD Pick and NSLD Pack.
+- Added Từ ngày / Đến ngày selection, defaulting to today on every app start.
+- Replaced the fixed yesterday→today payroll request with explicit runtime FromDate/ToDate expansion.
+- Added persistent per-day payroll cache under the local data folder.
+- Manual sync now detects cache coverage, groups missing days into contiguous ranges, and downloads only those ranges.
+- Current day is always refreshed on manual sync; successful historical empty days are cached.
+- Multi-day report selection uses the full date range, while Pick/Pack/Phân ca use the selected end date only.
+- Recap calculations now run locally and do not require Google Sheets.
+- Preserved Excel first-match VLOOKUP behavior for Pick Auto PP classification using Mã Tham chiếu → first Pack user.
+- Added typed report date/number/percent sorting and display.
+- Added regression tests for Recap formulas, cache gap planning, empty-day caching, explicit date expansion and production reference parsing.
