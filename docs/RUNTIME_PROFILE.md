@@ -1,99 +1,53 @@
-# LOCAL LIVE SOURCE CONFIGURATION
+# LOCAL DASHBOARD CONFIGURATION
 
 Updated: 2026-09-19
 
-The repository is public. Production endpoint URLs, request bodies, credentials, tokens and company data must never be committed to GitHub.
+The repository is public. Production host names, credentials, tokens, raw cURL values and company data must never be committed.
 
 ## Owner workflow
 
-A separate runtime-profile file is **no longer required** for normal operation.
+The app uses **one Dashboard cURL/session**.
 
-The application exposes two business data sources in **Thiết lập**:
+Owner setup:
+1. open Thiết lập;
+2. paste one valid Dashboard cURL (bash);
+3. click **LƯU CẤU HÌNH**;
+4. click **KIỂM TRA ĐỒNG BỘ**.
 
-1. **Sản lượng**
-   - source used for Payroll/Productivity;
-   - parsed into User/PDA;
-   - processed into Phân ca;
-   - processed into Pick and Pack.
+The application derives the required internal requests from the captured Dashboard origin and uses the same protected session for both:
+- current **Đang lấy hàng** data;
+- **Sản lượng** export for the Excel-style productivity pipeline.
 
-2. **Đang lấy hàng**
-   - source used for Active Picking;
-   - parsed into the live progress/status table.
+The full private origin and credentials are stored only under the current Windows user with DPAPI. They are not embedded in the public source or release.
 
-For each source, the Owner performs the setup once:
-
-1. choose the source in the application;
-2. paste the matching Dashboard cURL (bash);
-3. click **LƯU NGUỒN**;
-4. click **KIỂM TRA NGUỒN**.
-
-The application then:
-- extracts URL, HTTP method, body and non-sensitive request headers;
-- extracts Dashboard session values separately;
-- removes the raw cURL from the edit box;
-- protects the session and source configuration with Windows DPAPI for the current Windows user;
-- keeps the source configuration outside the public repository and release artifact.
-
-After both sources are configured, normal operation only requires **ĐỒNG BỘ**.
-
-## Session refresh
-
-Dashboard credentials may expire before the saved request shape changes.
-
-Pasting a fresh cURL for either configured source:
-- refreshes non-empty session values;
-- refreshes that source request definition;
-- preserves the other configured source.
-
-## Daily request dates
-
-When a saved cURL contains the current, previous or next calendar date, the application converts those values into local templates:
-- `{{YESTERDAY_ISO}}`, `{{TODAY_ISO}}`, `{{TOMORROW_ISO}}`;
-- `{{YESTERDAY_DMY}}`, `{{TODAY_DMY}}`, `{{TOMORROW_DMY}}`.
-
-The values are expanded at synchronization time so a request captured today does not stay pinned to an old date tomorrow.
-
-## Synchronization pipeline
-
-### Sản lượng
-Dashboard request
-→ XLSX response
-→ header/field detection
-→ completed-work rows
-→ User/PDA
-→ automatic/manual shift resolution
-→ within-shift/overtime split
-→ even/odd aggregation
-→ Pick / Pack / Phân ca tables.
+## Runtime pipeline
 
 ### Đang lấy hàng
-Dashboard request
-→ JSON response
-→ Active Picking field mapping
-→ status/warning/progress/time/device fields
-→ Đang lấy hàng table.
+Dashboard session
+→ current-picking JSON
+→ 31-column live table
+→ status/warning/progress/device fields.
 
-## Partial failure behavior
+### Sản lượng
+Same Dashboard session
+→ payroll/productivity XLSX export for yesterday..today
+→ parse completed production rows
+→ enrich employee attributes from current-picking data
+→ Mapping-equivalent normalization
+→ Phân ca
+→ classify in-shift/overtime and even/odd
+→ Pick / Pack.
 
-The two sources are independent.
+### User / PDA
+The native app joins production users with current-picking employee/device fields and deduplicates by User. This provides the employee reference needed by the production calculation without requiring Owner to configure a second Dashboard source.
 
-If one source fails:
-- the successful source is still processed;
-- the last valid data from the failed source is retained;
-- status/log identifies the missing/failed business source;
-- the app does not clear valid data only because another source failed.
+## Compatibility
 
-## Security
+test.6 stored two source bindings when the same cURL was entered twice. On startup, the next version automatically rebuilds both internal bindings from the already saved single Dashboard cURL/session. Owner should not need to enter the same cURL twice again.
 
-The local encrypted source/session files may contain operational request information and must not be uploaded to:
-- public GitHub issues;
-- commits;
-- releases;
-- Actions artifacts;
-- public diagnostics.
+## Failure behavior
 
-The exported application Log remains sanitized and does not include raw endpoint URLs or credentials.
-
-## Legacy compatibility
-
-The old `SupraProductivity.profile.json` import path remains only as backward compatibility for existing local installations. New Owner setup must use the in-app source configuration workflow.
+- If current-picking succeeds and payroll fails, the live table remains updated and previous valid production tables remain.
+- If payroll succeeds and current-picking fails, production is still processed and previous valid current-picking data remains.
+- A failed request never clears the previous valid snapshot.
+- Logs record request type, HTTP status, bytes, parse row count and processing row counts without endpoint or credential values.
