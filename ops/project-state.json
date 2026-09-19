@@ -6,8 +6,8 @@
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
   "current_version": "v1.3.1-public-source-test",
-  "current_phase": "live-profile-binding-and-github-build-verification",
-  "current_status": "public_source_ci_updater_foundation_ready",
+  "current_phase": "github-build-verified-owner-test",
+  "current_status": "github_ci_verified_test_candidate",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -47,29 +47,37 @@
     "Added staged GitHub update flow: download release EXE/checksum, SHA256 verify, local backup, replace after exit, restart; replacement failure restores backup",
     "Local go test ./..., go vet ./..., Windows x64 cross-build, and public binary scan passed",
     "Verified repository continuity/security bootstrap is present on main",
-    "Verified V1.3 package available for testing contains binary artifacts only; no canonical source tree was preserved in the active handoff artifacts"
+    "Canonical sanitized Go/Win32 source is present in GitHub",
+    "Live payroll/productivity and active-picking bindings execute through a DPAPI-protected local runtime profile with Windows proxy/system/direct fallback",
+    "GitHub pull-request CI passed project-state guard, public-repo scan, go test, go vet, Windows x64 cross-build, binary public scan, packaging and artifact upload",
+    "GitHub Actions test artifact created from canonical source (run 35412096189, artifact 10574174267)",
+    "Staged GitHub updater implemented with stable-release lookup, SHA256 verification, backup, replace-after-exit and restart"
   ],
-  "current_task": "Recover or recreate the canonical V1.3 source tree, sanitize it for the public repository, then add reproducible GitHub Actions build/release.",
-  "next_action": "Create a canonical source tree that reproduces the current V1.3 behavior. The active handoff artifacts contain the V1.3 EXE/package but not its source, so reproducible GitHub build/release is blocked until source is restored. After source restoration: security scrub -> commit -> Windows x64 CI -> tagged Release -> updater.",
+  "current_task": "Owner-test the GitHub-built Windows x64 artifact on the company laptop (PDA and Office), then promote only an accepted build to a tagged GitHub Release.",
+  "next_action": "Test the GitHub-built artifact from Actions run 35412096189. If behavior is accepted, create a version tag/release via the existing Release Windows Portable workflow; if not, analyze sanitized diagnostics, fix verified regressions, and rebuild.",
   "blockers": [
-    "The active V1.3 test package contains the executable, guide, changelog and checksum, but no source tree.",
-    "A reproducible GitHub Actions build cannot be claimed until canonical source that builds V1.3-equivalent behavior is present in the repository."
+    "Stable GitHub Release is intentionally not published yet because the GitHub-built candidate has not been owner-tested on the target company laptop.",
+    "Manual/offline update package selection and startup-health rollback are still enhancement gaps; current GitHub updater already verifies SHA256, backs up, replaces and restarts.",
+    "Some functional parity items remain owner-verification tasks (PICK flicker/event storm, CPU telemetry depth, all target/quota controls, User/PDA live mapping)."
   ],
   "known_issues": [
-    "Runtime profile import/encryption exists, but full live Active-Picking and Payroll/Productivity parsers are not yet wired to those bindings.",
-    "Updater now stages/verifies/replaces with backup, but manual/offline package picker and startup-health rollback are still incomplete.",
-    "Overview still needs full CPU telemetry parity.",
-    "All PICK numeric target/quota fields are not yet editable in the reconstructed public UI.",
-    "User/PDA has no bundled company snapshot by design; live binding remains pending.",
-    "V1.3 PICK flicker/event-storm fix still requires owner verification on target hardware."
+    "GitHub-built candidate requires owner test on PDA and restricted Office networks.",
+    "PICK flicker/event-storm fix requires target-laptop verification.",
+    "Full Excel parity remains under owner verification.",
+    "Manual/offline updater picker and startup-health rollback are not yet complete.",
+    "Stable release must not be marked accepted before owner test."
   ],
   "test_status": {
     "v1.1": "superseded",
     "v1.2": "superseded",
     "v1.3-private-test": "owner_test_pending",
-    "v1.3.1-public-source-test": "local_tests_vet_cross_build_binary_scan_passed_remote_actions_pending",
-    "pda_network": "retest_public_build_required",
-    "office_network": "retest_public_build_required"
+    "v1.3.1-public-source-test": "github_pr_ci_passed_owner_test_pending",
+    "pda_network": "owner_retest_required",
+    "office_network": "owner_retest_required",
+    "github_actions_build": "passed_run_35412096189",
+    "public_repo_guard": "passed",
+    "windows_x64_cross_build": "passed",
+    "binary_public_scan": "passed"
   },
   "security": {
     "public_repo": true,
@@ -95,20 +103,28 @@
     "source_in_repo": true,
     "windows_x64_workflow": ".github/workflows/build.yml",
     "release_workflow": ".github/workflows/release.yml",
-    "local_cross_build": "passed",
-    "core_unit_tests": "passed",
-    "local_binary_public_guard": "passed",
-    "remote_actions_verification": "pending_external_trigger",
-    "local_go_test_all": "passed",
-    "local_go_vet_all": "passed"
+    "pr_ci_run_id": 35412096189,
+    "artifact_id": 10574174267,
+    "artifact_name": "SupraProductivity-windows-x64",
+    "artifact_digest": "sha256:1103ef127b603408516979bdfbe8c87c3164b4562ef4ab1deee6a938f953bf8c",
+    "project_state_guard": "passed",
+    "public_repo_guard": "passed",
+    "go_test_all": "passed",
+    "go_vet_all": "passed",
+    "windows_x64_cross_build": "passed",
+    "binary_public_guard": "passed",
+    "packaging": "passed",
+    "artifact_upload": "passed",
+    "stable_release": "pending_owner_acceptance"
   },
   "update_pipeline": {
-    "latest_release_check": "implemented",
+    "latest_stable_release_check": "implemented",
     "sha256_verification": "implemented",
     "staged_replace": "implemented",
     "backup_before_replace": "implemented",
     "restart_after_replace": "implemented",
     "replace_failure_restore": "implemented",
+    "github_unavailable_is_non_fatal": true,
     "manual_offline_package": "pending",
     "startup_health_rollback": "pending"
   },
@@ -117,6 +133,7 @@
     "local_provisioning": "implemented",
     "storage": "Windows DPAPI current user",
     "plaintext_profile_removed_after_import": "best_effort",
-    "live_binding": "pending"
+    "live_binding": "implemented",
+    "private_endpoints_in_public_repo": false
   }
 }
