@@ -1,68 +1,72 @@
 # BUILD / RELEASE / UPDATE PLAN
 
-## Repository
+## Canonical repository
 
 `tamnv2/supra-productivity-desktop` — public.
 
-## Current build pipeline
+Production credentials, private endpoint bindings, raw operational data and raw diagnostics are not repository assets.
+
+## Continuous build
 
 `.github/workflows/build.yml`
 
-On main pushes, pull requests, or manual dispatch it will:
+On main/PR it validates project state and public-repo safety, runs tests/vet, cross-builds Windows x64, scans the produced binary, creates SHA256 and uploads the portable artifact.
 
-1. validate canonical project state;
-2. scan public text files for likely sensitive values;
-3. run core unit tests and Go vet;
-4. cross-build Windows x64 portable EXE;
-5. scan the built binary for embedded secrets/private URL hosts;
-6. create SHA256;
-7. package and upload the Windows artifact.
+Verified PR build:
+- run `35412096189` — PASS.
 
-## Release pipeline
+Verified main build for current candidate request:
+- run `35412269285` — PASS.
 
-`.github/workflows/release.yml`
+## Owner-test prerelease
 
-Version format: `vX.Y.Z` or a hyphenated test version such as `v1.4.0-test.1`.
+`.github/workflows/publish-test.yml`
 
-Assets:
-- `SupraProductivity.exe`
-- `SHA256SUMS.txt`
-- `SupraProductivity_<version>_windows_x64.zip`
+Canonical trigger:
+- change `release/test-version.txt` to a new version matching `vX.Y.Z-test.N`.
 
-Stable tags without a hyphen create normal releases. Hyphenated test versions are prereleases.
+The workflow rebuilds from canonical source, reruns guards/tests/vet/binary scan and publishes a GitHub **prerelease**.
 
-## Updater
+Current candidate:
+- `v1.3.1-test.1`
+- publish run `35412269300` — PASS.
 
-Implemented foundation:
-- non-fatal GitHub release check;
-- no dependency on GitHub for core startup/operation;
-- blocked GitHub on Office network is treated as an update-check limitation, not network failure.
+Prereleases are for owner testing and are not treated as accepted stable builds.
 
-Implemented:
-1. download stable release EXE and SHA256 asset;
-2. verify SHA256 before replacement;
-3. stage new executable beside the current portable EXE;
-4. back up the current executable;
-5. replace after app exit with retry;
-6. restart the application;
-7. restore the backup if replacement itself fails.
+## Accepted stable release
 
-Still required:
-- manual/offline package selection for restricted Office network;
-- stronger startup-health rollback if a newly replaced EXE launches but fails shortly afterward.
+`.github/workflows/publish-stable.yml`
 
-## Private operational configuration
+After explicit owner acceptance, create/update:
 
-Production endpoint bindings are not embedded in public source or GitHub Releases.
+`release/stable-version.txt`
 
-See `docs/RUNTIME_PROFILE.md`.
+with a stable semantic version such as `v1.3.1`.
 
-## Security
+That change automatically rebuilds, validates and publishes a normal GitHub Release. Existing stable release tags are not silently overwritten.
 
-A release is invalid if any guard detects credentials, private endpoint URLs, raw company data, or unsanitized diagnostics.
+The older tag/manual `.github/workflows/release.yml` remains available as an alternate release path.
 
-## Current verification status
+## In-app updater
 
-Local core tests, Windows cross-build, and binary public guard passed on the reconstructed sanitized source.
+Stable update path:
+1. query latest stable GitHub Release;
+2. compare version;
+3. download `SupraProductivity.exe` and `SHA256SUMS.txt`;
+4. verify SHA256;
+5. save current executable as backup;
+6. stage replacement after app exit;
+7. restart;
+8. restore backup if replacement itself fails.
 
-Remote GitHub Actions execution still needs an external/manual trigger because connector-created events did not expose a run during this session.
+GitHub/public Internet being unavailable is non-fatal; core internal operations continue.
+
+Remaining hardening:
+- manual/offline package picker for Office networks where GitHub is blocked;
+- startup-health rollback after a replacement that launches but later fails.
+
+## Acceptance rule
+
+A successful GitHub build/prerelease is **not owner acceptance**.
+
+Only publish/promote a stable version after explicit owner runtime approval.
