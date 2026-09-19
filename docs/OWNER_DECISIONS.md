@@ -56,3 +56,10 @@ Canonical record of explicit owner decisions. Newest explicit owner instruction 
 - The desktop window opens at the full Windows work area and is not user-resizable; normal user flow is full-size or minimized to the taskbar.
 - Runtime responsiveness has priority over diagnostics: filesystem/network logging must not block the UI thread.
 
+## 2026-09-19 — Recovered V1.3 source becomes rebuild baseline
+
+- The owner-provided `SUPRA_PRODUCTIVITY_V1.3_TEST_FULL_SOURCE.zip`, reconstructed from the stable V1.3 executable, is the authority for the next rebuild.
+- Preserve the recovered V1.3 business logic and operating scenarios before making any further feature changes.
+- The previous GitHub test.1/test.2 implementation must not override recovered V1.3 behavior where they differ.
+- Further UI/feature changes are deferred until the V1.3 rebaseline and GitHub updater path pass owner testing.
+- Public-repository security remains unchanged: recovered private endpoint/proxy values must not be committed; local encrypted runtime binding remains required.
