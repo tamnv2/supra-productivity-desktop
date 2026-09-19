@@ -2,59 +2,42 @@
 
 Updated: 2026-09-19
 
-## Published candidate
+## Candidate being validated
 
-**v1.3.2-test.7** is published.
+**v1.3.2-test.8** — native Recap + smart date cache.
 
-Automated verification:
-- PR State Guard `35426884976` — PASS
-- PR Windows Portable `35426884987` — PASS
-- Main State Guard `35426934084` — PASS
-- Main Windows Portable `35426934063` — PASS
-- Publish Owner Test Candidate `35426934057` — PASS
-- unit tests / vet / Windows x64 cross-build / public binary scan / packaging — PASS
+Implementation on `feat/native-recap-smart-date-cache`:
+- report range defaults to today and accepts Từ ngày / Đến ngày;
+- no production auto-sync interval; business refresh is manual through **ĐỒNG BỘ**;
+- native **BÁO CÁO** tab: Recap, % chẵn lẻ, NSLD Pick, NSLD Pack;
+- per-day local payroll cache;
+- historical sync downloads only missing contiguous ranges;
+- today always refreshes on manual sync;
+- reports use full selected range; Pick/Pack/Phân ca use selected end date;
+- Excel first-match Mã Tham chiếu → Pack user rule retained for Pick Auto PP.
 
-## Corrected architecture
+## Next automated gate
 
-Owner configures **one Dashboard cURL/session only**.
+1. Open PR to `main`.
+2. Require PR State Guard and Windows Portable workflow to PASS:
+   - project/public-repo guards;
+   - `go test ./...`;
+   - `go vet ./...`;
+   - Windows x64 build and binary public scan.
+3. Merge only after CI passes.
+4. Merge changes `release/test-version.txt` to `v1.3.2-test.8`, which triggers owner-test prerelease publication.
+5. Verify main build + publish run before handing the EXE to Owner.
 
-The app derives two internal requests from that same protected session:
-- current-picking JSON for **Đang lấy hàng**;
-- payroll/productivity XLSX export for the Excel production calculation path.
+## Owner runtime test after publication
 
-Existing test.6 local credentials are migrated automatically on startup where the saved cURL is still available.
-
-## Excel-style processing
-
-Payroll/Productivity XLSX
-→ normalize/map production fields
-→ enrich missing employee fields from current-picking data
-→ aggregate User + Job
-→ Phân ca auto/manual
-→ classify in-shift/overtime and even/odd
-→ Pick
-→ Pack.
-
-User/PDA combines production users with live employee/PDA/client information.
-
-Additional regression fixes:
-- Site filter is 1291, not reconstructed 1921.
-- Sync test validates both response parsers, not only HTTP 200.
-- Previous valid snapshots remain if either internal request fails.
-- Log records sanitized row counts for payroll, User/PDA, Pick, Pack, Phân ca and active rows.
-
-## Owner test now
-
-1. Update/run test.7.
-2. Open Thiết lập: it should show Dashboard already configured after migration.
-3. Press **KIỂM TRA ĐỒNG BỘ**.
-4. Press **ĐỒNG BỘ**.
-5. Verify non-empty/expected:
-   - User / PDA
-   - Đang lấy hàng
-   - Pick
-   - Pack
-   - Phân ca
-6. Compare several users/DO/pieces/shift rows directly with the Excel workbook.
-
-If anything differs, export/send the test.7 Log. Do not re-enter the same cURL twice.
+1. Launch test.8: date range must default to today's date.
+2. In **BÁO CÁO**, select a historical range with partial local cache and press **ĐỒNG BỘ**.
+3. Log/status must show only missing days downloaded; already-cached historical days are not requested again.
+4. Verify four report views against the reference workbook:
+   - Recap
+   - % chẵn lẻ
+   - NSLD Pick
+   - NSLD Pack
+5. Verify Pick/Pack/Phân ca show only the selected **Đến ngày**, not a multi-day aggregation.
+6. Repeat manual sync on today: today's cache must refresh while prior historical days remain reused.
+7. Export Log if any value differs; credentials/raw company data must remain absent from GitHub.
