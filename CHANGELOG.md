@@ -163,3 +163,10 @@ Status: private test build; owner acceptance pending.
 - Preserved Excel first-match VLOOKUP behavior for Pick Auto PP classification using Mã Tham chiếu → first Pack user.
 - Added typed report date/number/percent sorting and display.
 - Added regression tests for Recap formulas, cache gap planning, empty-day caching, explicit date expansion and production reference parsing.
+
+### test.8 publication verification
+- PR #9 validation passed Project State Guard `35440770198` and Windows Portable `35440770194`.
+- Merged to main at `f1c6e0c326c426f7313bf157d3c77f6ad2d1bf64`.
+- Main State Guard `35442973560` and Windows Portable `35442973548` passed.
+- Owner-test prerelease `v1.3.2-test.8` published successfully by run `35442973570`.
+- Release includes EXE, SHA256 checksum file and Windows x64 ZIP; owner runtime report/cache parity remains pending.
