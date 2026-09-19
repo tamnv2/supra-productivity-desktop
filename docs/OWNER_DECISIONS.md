@@ -89,3 +89,14 @@ Canonical record of explicit owner decisions. Newest explicit owner instruction 
 - Prioritize dense operational information and clear grouping over decorative colors.
 - Runtime stability has priority over further business-feature expansion.
 
+## 2026-09-19 — in-app live source setup
+
+- Owner must not be required to provision a separate runtime-profile file.
+- Thiết lập contains two explicit operational sources: **Sản lượng** and **Đang lấy hàng**.
+- Each source is configured by pasting its Dashboard cURL once; the app stores request shape and session locally with Windows DPAPI.
+- Normal daily use after setup is the **ĐỒNG BỘ** button.
+- Request dates captured in cURL must not become stale; date values are converted to runtime templates.
+- A failed source must not clear valid data from another source or the previous successful snapshot.
+- Operator-facing status/messages use business names, not internal terms such as runtime profile/binding.
+- Public GitHub/release artifacts must still contain no private endpoints, tokens, raw logs or company data.
+
