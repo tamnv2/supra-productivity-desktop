@@ -189,24 +189,28 @@ func ParsePayrollXLSX(data []byte, b Binding) ([]core.PayrollRow, error) {
 	}
 	idx := struct {
 		job, evenOdd, doCode, user, name, provider, mnv, site, tenure int
-		start, end, duration, sku, pieces int
+		shift, manualShift, status                               int
+		start, end, duration, sku, pieces                        int
 	}{
-		resolve("job", "Loại công việc", "Job", "Work Type"),
-		resolve("even_odd", "Chẵn/Lẻ", "Chan/Le", "Even/Odd"),
-		resolve("do_code", "Mã DO", "DO", "DO Code"),
-		resolve("user", "Nhân viên", "User", "Employee User"),
-		resolve("name", "Họ và Tên", "Họ tên", "Name", "Employee Name"),
+		resolve("job", "Loại công việc", "Công việc", "JobType", "Job", "Work Type"),
+		resolve("even_odd", "Chẵn/Lẻ", "Chẵn lẻ", "Chan/Le", "EvenOdd", "Even/Odd"),
+		resolve("do_code", "DO", "Mã DO", "DeliveryOrder", "DO Code"),
+		resolve("user", "User", "Nhân viên", "Mã nhân viên", "Employee", "Employee User"),
+		resolve("name", "Họ và tên", "Tên nhân viên", "Họ và Tên", "Họ tên", "FullName", "Name", "Employee Name"),
 		resolve("provider", "Đối tác", "Nhà cung cấp", "Provider", "Vendor"),
 		resolve("mnv", "Mã nhân viên", "MNV", "Employee ID"),
 		resolve("site", "SiteId", "Site", "Site ID"),
 		resolve("tenure", "Tuổi nghề", "Tenure"),
-		resolve("start", "Thời gian bắt đầu", "Start Time", "Start"),
-		resolve("end", "Thời gian kết thúc", "End Time", "End"),
-		resolve("duration", "Thời gian thực hiện (Phút)", "Thời gian thực hiện", "Duration Minutes", "Duration"),
-		resolve("sku", "Tổng SKU đã thực hiện", "SKU đã lấy", "SKU Done", "SKU"),
-		resolve("pieces", "Tổng sản lượng đã thực hiện (Pieces)", "SL đã lấy", "Pieces Done", "Pieces"),
+		resolve("shift", "Phân ca", "Ca", "Shift"),
+		resolve("manual_shift", "Phân ca thủ công", "Manual Shift"),
+		resolve("status", "Trạng thái", "Status"),
+		resolve("start", "Bắt đầu", "Thời gian bắt đầu", "Start Time", "Start"),
+		resolve("end", "Kết thúc", "Thời gian kết thúc", "End Time", "End"),
+		resolve("duration", "Thời lượng", "Thời gian thực hiện (Phút)", "Thời gian thực hiện", "Duration Minutes", "Duration", "Phút"),
+		resolve("sku", "SKU", "Số SKU", "Tổng SKU đã thực hiện", "SKU đã lấy", "SKU Done"),
+		resolve("pieces", "Sản lượng", "SL", "Pieces", "Quantity", "Tổng sản lượng đã thực hiện (Pieces)", "SL đã lấy", "Pieces Done"),
 	}
-	if idx.job < 0 || idx.user < 0 || idx.start < 0 {
+	if idx.job < 0 || idx.user < 0 {
 		return nil, fmt.Errorf("payroll header missing required columns")
 	}
 	var out []core.PayrollRow
@@ -217,31 +221,44 @@ func ParsePayrollXLSX(data []byte, b Binding) ([]core.PayrollRow, error) {
 			}
 			return strings.TrimSpace(row[i])
 		}
-		user := get(idx.user)
-		if user == "" {
+		job, user := get(idx.job), get(idx.user)
+		if job == "" && user == "" {
 			continue
+		}
+		status := get(idx.status)
+		if status != "" {
+			lower := strings.ToLower(status)
+			if !strings.Contains(lower, "hoàn") && !strings.Contains(lower, "complete") {
+				continue
+			}
 		}
 		start, _ := parseDate(get(idx.start))
 		end, _ := parseDate(get(idx.end))
 		minutes, _ := parseNumber(get(idx.duration))
+		if minutes == 0 && !start.IsZero() && end.After(start) {
+			minutes = end.Sub(start).Minutes()
+		}
 		sku, _ := parseInt(get(idx.sku))
 		pieces, _ := parseInt(get(idx.pieces))
 		out = append(out, core.PayrollRow{
-			Job: get(idx.job), EvenOdd: get(idx.evenOdd), DO: get(idx.doCode), User: user,
+			Job: job, EvenOdd: get(idx.evenOdd), DO: get(idx.doCode), User: user,
 			Name: get(idx.name), Provider: get(idx.provider), MNV: get(idx.mnv),
-			Site: get(idx.site), Tenure: get(idx.tenure), Start: start, End: end,
-			Duration: minutes / 60.0, SKU: sku, Pieces: pieces,
+			Site: get(idx.site), Tenure: get(idx.tenure), Shift: get(idx.shift),
+			ManualShift: get(idx.manualShift), Start: start, End: end,
+			Duration: minutes, SKU: sku, Pieces: pieces,
 		})
 	}
 	if len(out) == 0 {
-		return nil, fmt.Errorf("payroll XLSX parsed zero data rows")
+		return nil, fmt.Errorf("Payroll không có dữ liệu")
 	}
 	return out, nil
 }
 
 func ParseActiveJSON(data []byte, b Binding) (core.Table, error) {
 	var root any
-	if err := json.Unmarshal(data, &root); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	if err := dec.Decode(&root); err != nil {
 		return core.Table{}, err
 	}
 	node := root
@@ -254,61 +271,102 @@ func ParseActiveJSON(data []byte, b Binding) (core.Table, error) {
 	}
 	items := findObjectSlice(node)
 	if len(items) == 0 {
-		return core.Table{}, fmt.Errorf("active JSON has no object array")
+		return core.Table{}, fmt.Errorf("JSON không có Data.Items")
 	}
-	type field struct {
-		Key string
-		Header string
-		Aliases []string
+
+	headers := []string{
+		"STT", "Trạng thái", "Cảnh báo", "Loại đơn", "Mã cửa hàng", "Mã DO", "User",
+		"Họ và tên", "Mã nhân viên", "Nhà cung cấp", "Site", "Phân ca", "Tuổi nghề",
+		"SKU đã lấy", "Tổng SKU", "Tiến độ SKU", "SL đã lấy", "Tổng SL", "Tiến độ SL",
+		"Thời gian đã dùng (phút)", "Thời gian kỳ vọng (phút)", "Chênh lệch (phút)",
+		"Thiết bị", "Client", "Ngày đầu làm việc", "Phút nghỉ", "TotalSecondWorking",
+		"CurrentTimeWorking", "TotalSecondForRest", "Index API", "Trạng thái gốc",
 	}
-	fields := []field{
-		{"status","Trạng thái",[]string{"status","state","trangthai"}},
-		{"alert","Cảnh báo",[]string{"alert","warning","canhbao"}},
-		{"order_type","Loại đơn",[]string{"ordertype","order_type","loaidon"}},
-		{"store_code","Mã cửa hàng",[]string{"storecode","store_code","macuahang"}},
-		{"do_code","Mã DO",[]string{"docode","do_code","ma_do","do"}},
-		{"user","User",[]string{"user","username","picker","employee"}},
-		{"name","Họ và tên",[]string{"name","fullname","employee_name","hoten"}},
-		{"mnv","Mã nhân viên",[]string{"mnv","employeeid","employee_id"}},
-		{"provider","Nhà cung cấp",[]string{"provider","vendor","nhacungcap"}},
-		{"site","Site",[]string{"site","siteid","site_id"}},
-		{"shift","Phân ca",[]string{"shift","ca","phanca"}},
-		{"tenure","Tuổi nghề",[]string{"tenure","tuoinghe"}},
-		{"sku_done","SKU đã lấy",[]string{"skudone","sku_done","pickedsku"}},
-		{"sku_total","Tổng SKU",[]string{"skutotal","sku_total","totalsku"}},
-		{"sku_progress","Tiến độ SKU",[]string{"skuprogress","sku_progress"}},
-		{"qty_done","SL đã lấy",[]string{"qtydone","qty_done","piecesdone","pickedqty"}},
-		{"qty_total","Tổng SL",[]string{"qtytotal","qty_total","piecestotal","totalqty"}},
-		{"qty_progress","Tiến độ SL",[]string{"qtyprogress","qty_progress","piecesprogress"}},
-		{"elapsed","Thời gian đã dùng",[]string{"elapsed","elapsedtime","timeused"}},
-		{"expected","Thời gian kỳ vọng",[]string{"expected","expectedtime"}},
-		{"delta","Chênh lệch",[]string{"delta","difference","timedelta"}},
-		{"device","Thiết bị",[]string{"device","pda","deviceid"}},
-		{"client","Client",[]string{"client","clientid"}},
-		{"start_date","Ngày đầu làm việc",[]string{"startdate","start_date","firstworkdate"}},
-	}
-	headers := make([]string, len(fields))
-	for i, f := range fields { headers[i] = f.Header }
 	t := core.Table{Headers: headers}
-	for _, item := range items {
-		row := make([]any, len(fields))
-		for i, f := range fields {
-			spec := ""
-			if b.FieldMap != nil { spec = b.FieldMap[f.Key] }
-			v := valueBySpec(item, spec, f.Aliases)
-			switch f.Key {
-			case "sku_done","sku_total","qty_done","qty_total":
-				if n, ok := numberAny(v); ok { row[i] = int(n) } else { row[i] = stringify(v) }
-			case "sku_progress","qty_progress":
-				if n, ok := numberAny(v); ok {
-					if n > 1 { n /= 100 }
-					row[i] = n
-				} else { row[i] = parsePercentAny(v) }
-			default:
-				row[i] = stringify(v)
-			}
+
+	get := func(item map[string]any, canonical string, aliases ...string) any {
+		spec := ""
+		if b.FieldMap != nil {
+			spec = b.FieldMap[canonical]
 		}
-		t.Rows = append(t.Rows, row)
+		return valueBySpec(item, spec, aliases)
+	}
+	num := func(v any) float64 {
+		if n, ok := numberAny(v); ok {
+			return n
+		}
+		return 0
+	}
+	statusDisplay := func(raw string) string {
+		s := strings.ToLower(raw)
+		switch {
+		case strings.Contains(s, "overtime"), strings.Contains(s, "over time"), strings.Contains(s, "quá"):
+			return "Quá thời gian"
+		case strings.Contains(s, "complete"), strings.Contains(s, "hoàn"):
+			return "Hoàn thành"
+		default:
+			return "Đang lấy"
+		}
+	}
+
+	for i, item := range items {
+		rawStatus := stringify(get(item, "status", "Status", "status", "PickingStatus", "State"))
+		status := statusDisplay(rawStatus)
+		warning := ""
+		if status == "Quá thời gian" {
+			warning = "Quá thời gian"
+		}
+		indexValue := int(num(get(item, "index", "Index", "IndexAPI", "No")))
+		if indexValue == 0 {
+			indexValue = i + 1
+		}
+		skuDone := num(get(item, "sku_done", "TotalSKUProcessed", "SKUProcessed", "ProcessedSKU", "PickedSKU", "PTotalSKUProcessed"))
+		skuTotal := num(get(item, "sku_total", "TotalSKU", "SKU", "TotalSku"))
+		qtyDone := num(get(item, "qty_done", "TotalUnitProcessed", "UnitProcessed", "PickedUnit", "ProcessedUnit"))
+		qtyTotal := num(get(item, "qty_total", "TotalUnit", "TotalUnits", "Unit", "TotalQuantity"))
+		elapsed := num(get(item, "elapsed", "TotalSpendTime", "SpendTime", "CurrentTimeWorkingMinute", "TotalTime"))
+		expected := num(get(item, "expected", "TotalExpectTime", "ExpectTime", "ExpectedTime"))
+		skuProgress, qtyProgress := 0.0, 0.0
+		if skuTotal > 0 {
+			skuProgress = skuDone / skuTotal
+		}
+		if qtyTotal > 0 {
+			qtyProgress = qtyDone / qtyTotal
+		}
+
+		t.Rows = append(t.Rows, []any{
+			indexValue,
+			status,
+			warning,
+			stringify(get(item, "order_type", "OrderType", "Type", "EvenOdd", "ChanLe", "OrderCategory")),
+			stringify(get(item, "store_code", "StoreCode", "ClientCode", "StoreId", "StoreID")),
+			stringify(get(item, "do_code", "DOCode", "DeliveryOrderCode", "DeliveryOrder", "DO", "OrderCode", "DeliveryOrderId")),
+			stringify(get(item, "user", "UserName", "userName", "Username", "Employee", "User", "PickerUser")),
+			stringify(get(item, "name", "FullName", "EmployeeName", "Name", "Fullname")),
+			stringify(get(item, "mnv", "MNV", "EmployeeId", "EmployeeID")),
+			stringify(get(item, "provider", "Provider", "Vendor", "Partner")),
+			stringify(get(item, "site", "Site", "SiteId", "SiteID")),
+			stringify(get(item, "shift", "Shift", "Ca", "PhanCa")),
+			stringify(get(item, "tenure", "Tenure", "TuoiNghe")),
+			skuDone,
+			skuTotal,
+			skuProgress,
+			qtyDone,
+			qtyTotal,
+			qtyProgress,
+			elapsed,
+			expected,
+			elapsed - expected,
+			stringify(get(item, "device", "DeviceId", "DeviceID", "Device", "PDA")),
+			stringify(get(item, "client", "Client", "ClientName")),
+			stringify(get(item, "start_date", "FirstWorkDate", "StartWorkingDate")),
+			num(get(item, "rest_minute", "RestMinute", "TotalRestMinute", "BreakTime")),
+			num(get(item, "total_second_working", "TotalSecondWorking")),
+			num(get(item, "current_time_working", "CurrentTimeWorking")),
+			num(get(item, "total_second_for_rest", "TotalSecondForRest")),
+			indexValue,
+			rawStatus,
+		})
 	}
 	return t, nil
 }
