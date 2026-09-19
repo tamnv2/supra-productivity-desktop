@@ -36,6 +36,7 @@ The Excel interaction pattern is:
    - Pack
    - Phân ca
    - User / PDA
+   - Báo cáo
    - Log
    - Thiết lập
 
@@ -98,7 +99,7 @@ The Excel interaction pattern is:
 5. Site1399-specific screens/data if this desktop application's actual scope is now only 1291.
 6. Legacy temporary/clipboard helper concepts that existed only because Excel/VBA required them.
 
-## Items that need Owner decision before implementation
+## Owner decisions resolved for implementation
 
 1. **Pack SKU deduction control**
    - Original Excel shows this setting.
@@ -109,13 +110,14 @@ The Excel interaction pattern is:
    - Original workbook includes Site1291 and Site1399.
    - Recommendation: remove Site1399 from the new desktop UI if the current application is 1291-only.
 
-3. **N-1 production report**
-   - Original workbook contains a “Tạo báo cáo sản lượng N-1” action.
-   - Recommendation: keep only if still used operationally; otherwise remove from the core app.
+3. **Recap / N-1 reporting — RESOLVED**
+   - Do not push aggregated Recap data to Google Sheets as the normal report path.
+   - Build a native **BÁO CÁO** tab with Recap, % chẵn lẻ, NSLD Pick and NSLD Pack.
+   - Report range is selectable and uses local date cache plus missing-range download.
 
-4. **Automatic sync interval**
-   - Excel exposes/manualizes sync modes and 15/30/60-minute choices.
-   - Recommendation: core data refresh remains manual-first until runtime stability is accepted; automatic interval can be added after Owner confirms desired cadence.
+4. **Automatic sync interval — RESOLVED**
+   - Remove production auto-sync intervals.
+   - Business data is refreshed only by the manual **ĐỒNG BỘ** button.
 
 5. **User/PDA source behavior**
    - Excel has dedicated sync/cache behavior.

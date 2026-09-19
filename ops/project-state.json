@@ -6,8 +6,8 @@
   "repository_visibility": "public",
   "updated_at": "2026-09-19",
   "current_version": "v1.3.2-test.7",
-  "current_phase": "owner-live-excel-parity-verification",
-  "current_status": "test7_published_owner_runtime_output_verification_pending",
+  "current_phase": "native-recap-smart-cache-candidate",
+  "current_status": "v1.3.2-test.8 implementation complete; PR CI pending",
   "implementation": {
     "platform": "Windows x64",
     "distribution": "portable",
@@ -98,12 +98,9 @@
     "Main Windows Portable build run 35426934063 passed.",
     "Published v1.3.2-test.7 successfully via run 35426934057."
   ],
-  "current_task": "Owner verifies one-session Dashboard sync populates User/PDA, Phân ca, Pick, Pack and Đang lấy hàng with Excel-equivalent results.",
-  "next_action": "Owner updates/runs v1.3.2-test.7. Existing test.6 cURL/session should auto-migrate. Press KIỂM TRA ĐỒNG BỘ then ĐỒNG BỘ; verify row counts and sample calculations against Excel. If any request/parser/calculation differs, export the test.7 Log for targeted parity correction.",
-  "blockers": [
-    "Target-laptop live verification is required because CI cannot access the private Dashboard response.",
-    "Exact Excel-output parity must be confirmed against live production rows before Stable promotion."
-  ],
+  "current_task": "Validate and publish native Recap/report date range plus smart per-day payroll cache.",
+  "next_action": "Open PR for test.8, require State Guard + Windows Portable CI PASS, merge, verify main build/publish workflow, then Owner tests report parity and missing-range download on target laptop.",
+  "blockers": [],
   "known_issues": [
     "test.6 same-cURL split regression is fixed in test.7.",
     "test.7 derives the correct picking JSON and payroll XLSX requests from one session; live private-response verification remains pending."
@@ -130,7 +127,8 @@
     "v1.3.2-test.4": "owner_rejected_not_responding_and_ui_unacceptable",
     "v1.3.2-test.5": "runtime_stability_pass_sync_source_setup_missing",
     "v1.3.2-test.6": "owner_rejected_same_source_split_and_empty_production",
-    "v1.3.2-test.7": "published_owner_runtime_output_pending"
+    "v1.3.2-test.7": "published_owner_runtime_output_pending",
+    "v1.3.2-test.8": "branch_ci_pending"
   },
   "security": {
     "public_repo": true,
@@ -171,13 +169,14 @@
     "stable_release": "pending_owner_acceptance",
     "candidate_workflow": ".github/workflows/publish-test.yml",
     "stable_publish_workflow": ".github/workflows/publish-stable.yml",
-    "candidate_release": "v1.3.2-test.7",
-    "candidate_release_status": "published_prerelease",
+    "candidate_release": "v1.3.2-test.8",
+    "candidate_release_status": "branch_ci_pending",
     "candidate_publish_run_id": 35426934057,
     "main_build_run_id": 35426934063,
     "pr_ci_state_guard_run_id": 35426884976,
     "pr_ci_windows_build_run_id": 35426884987,
-    "main_state_guard_run_id": 35426934084
+    "main_state_guard_run_id": 35426934084,
+    "previous_candidate_release": "v1.3.2-test.7"
   },
   "update_pipeline": {
     "latest_stable_release_check": "implemented",
@@ -206,5 +205,19 @@
       "derived-active-picking",
       "derived-payroll-productivity"
     ]
+  },
+  "business_report": {
+    "runtime_dependency": "local calculation; no Google Sheets required",
+    "views": [
+      "Recap",
+      "% chẵn lẻ",
+      "NSLD Pick",
+      "NSLD Pack"
+    ],
+    "date_default": "today",
+    "date_range_selectable": true,
+    "operational_day": "selected end date",
+    "sync_mode": "manual only",
+    "cache": "per-day local payroll/productivity snapshots; historical gaps only; today always refreshes"
   }
 }
